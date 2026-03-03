@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>财务健康 · 登录</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f13; --surface: #1a1a24; --surface2: #1f1f2e;
+      --accent: #c8f050; --accent-dim: rgba(200,240,80,0.1);
+      --ok: #5cf0b0; --ok-dim: rgba(92,240,176,0.1);
+      --warn: #ff6b6b; --warn-dim: rgba(255,107,107,0.1);
+      --text: #f0f0f8; --text-muted: rgba(240,240,248,0.45);
+      --border: rgba(255,255,255,0.08);
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .wrap {
+      width: 100%; max-width: 360px; padding: 0 24px;
+    }
+    .logo { text-align: center; margin-bottom: 40px; }
+    .logo-icon {
+      width: 72px; height: 72px; border-radius: 24px;
+      background: var(--accent-dim); border: 1.5px solid rgba(200,240,80,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; margin: 0 auto 16px;
+    }
+    .logo h1 { font-size: 22px; font-weight: 700; }
+    .logo p  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* tab 切换 */
+    .tab-row {
+      display: flex; background: var(--surface);
+      border-radius: 14px; padding: 4px; gap: 4px; margin-bottom: 24px;
+    }
+    .tab-btn {
+      flex: 1; height: 38px; border-radius: 10px; border: none;
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all 0.2s;
+      color: var(--text-muted); background: transparent;
+    }
+    .tab-btn.active { background: var(--accent); color: #0f0f13; }
+
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .field input {
+      width: 100%; height: 50px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 0 16px;
+      font-size: 15px; font-family: inherit; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--text-muted); }
+
+    .submit-btn {
+      width: 100%; height: 52px; border: none; border-radius: 16px;
+      background: var(--accent); color: #0f0f13;
+      font-size: 16px; font-weight: 700; font-family: inherit;
+      cursor: pointer; margin-top: 8px; transition: opacity 0.2s;
+    }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .msg {
+      margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+      font-size: 13px; line-height: 1.5; display: none;
+    }
+    .msg.error { background: var(--warn-dim); color: var(--warn); display: block; }
+    .msg.ok    { background: var(--ok-dim);   color: var(--ok);   display: block; }
+
+    .divider {
+      text-align: center; color: var(--text-muted);
+      font-size: 12px; margin: 20px 0;
+      position: relative;
+    }
+    .divider::before, .divider::after {
+      content: ''; position: absolute; top: 50%;
+      width: 40%; height: 1px; background: var(--border);
+    }
+    .divider::before { left: 0; }
+    .divider::after  { right: 0; }
+
+    .privacy {
+      text-align: center; font-size: 11px;
+      color: var(--text-muted); margin-top: 20px; line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-icon">💰</div>
+    <h1>财务健康</h1>
+    <p>掌控你的每一分钱</p>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-btn active" id="tab-login">登录</button>
+    <button class="tab-btn"       id="tab-signup">注册</button>
+  </div>
+
+  <!-- 登录表单 -->
+  <div id="form-login">
+    <div class="field">
+      <label>邮箱</label>
+      <input type="email" id="login-email" placeholder="your@email.com">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input type="password" id="login-pwd" placeholder="••••••••">
+    </div>
+    <button class="submit-btn" id="login-btn">登录</button>
+    <div class="msg" id="login-msg"></div>
+  </div>
+
+  <!-- 注册表单 -->
+  <div id="form-signup" style="display:none">
+    <div class="field">
+      <label>邮箱</label>
+      <input type="email" id="signup-email" placeholder="your@email.com">
+    </div>
+    <div class="field">
+      <label>密码（至少6位）</label>
+      <input type="password" id="signup-pwd" placeholder="••••••••">
+    </div>
+    <div class="field">
+      <label>确认密码</label>
+      <input type="password" id="signup-pwd2" placeholder="••••••••">
+    </div>
+    <button class="submit-btn" id="signup-btn">注册账号</button>
+    <div class="msg" id="signup-msg"></div>
+  </div>
+
+  <div class="privacy">你的数据加密存储，不会用于任何商业用途</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://wnktdhmcaevynmvwifoe.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_5Inbgq67GDKwpQP7iWMb1w_zWSuqE-C';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 已登录直接跳转
+sb.auth.getUser().then(({ data: { user } }) => {
+  if (user) window.location.href = 'index.html';
+});
+
+// Tab 切换
+document.getElementById('tab-login').addEventListener('click', () => {
+  document.getElementById('tab-login').classList.add('active');
+  document.getElementById('tab-signup').classList.remove('active');
+  document.getElementById('form-login').style.display  = '';
+  document.getElementById('form-signup').style.display = 'none';
+});
+document.getElementById('tab-signup').addEventListener('click', () => {
+  document.getElementById('tab-signup').classList.add('active');
+  document.getElementById('tab-login').classList.remove('active');
+  document.getElementById('form-signup').style.display = '';
+  document.getElementById('form-login').style.display  = 'none';
+});
+
+// 登录
+document.getElementById('login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const pwd   = document.getElementById('login-pwd').value;
+  const msg   = document.getElementById('login-msg');
+  const btn   = document.getElementById('login-btn');
+  if (!email || !pwd) { showMsg(msg, '请填写邮箱和密码', 'error'); return; }
+  btn.disabled = true; btn.textContent = '登录中…';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if (error) {
+    showMsg(msg, '邮箱或密码错误，请重试', 'error');
+    btn.disabled = false; btn.textContent = '登录';
+  } else {
+    window.location.href = 'index.html';
+  }
+});
+
+// 注册
+document.getElementById('signup-btn').addEventListener('click', async () => {
+  const email = document.getElementById('signup-email').value.trim();
+  const pwd   = document.getElementById('signup-pwd').value;
+  const pwd2  = document.getElementById('signup-pwd2').value;
+  const msg   = document.getElementById('signup-msg');
+  const btn   = document.getElementById('signup-btn');
+  if (!email || !pwd) { showMsg(msg, '请填写邮箱和密码', 'error'); return; }
+  if (pwd !== pwd2)   { showMsg(msg, '两次密码不一致',   'error'); return; }
+  if (pwd.length < 6) { showMsg(msg, '密码至少需要6位',  'error'); return; }
+  btn.disabled = true; btn.textContent = '注册中…';
+  const { error } = await sb.auth.signUp({ email, password: pwd });
+  if (error) {
+    showMsg(msg, '注册失败：' + error.message, 'error');
+    btn.disabled = false; btn.textContent = '注册账号';
+  } else {
+    showMsg(msg, '✅ 注册成功！请查收验证邮件，点击链接后即可登录', 'ok');
+    btn.textContent = '已发送验证邮件';
+  }
+});
+
+// 回车提交
+document.getElementById('login-pwd').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login-btn').click();
+});
+document.getElementById('signup-pwd2').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('signup-btn').click();
+});
+
+function showMsg(el, text, type) {
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+</script>
+</body>
+</html>

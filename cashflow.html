@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>财务健康 · 收支</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .month-bar { display:flex;align-items:center;justify-content:space-between;padding:0 24px 16px; }
+    .month-btn { width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer; }
+    .month-label { font-size:16px;font-weight:700;color:var(--text); }
+    .summary-row { display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:0 24px 16px; }
+    .summary-card { background:var(--surface);border-radius:16px;padding:14px 12px;border:1px solid var(--border);text-align:center; }
+    .summary-label { font-size:10px;color:var(--text-muted);margin-bottom:6px; }
+    .summary-val   { font-size:15px;font-weight:700; }
+    .sav-card { margin:0 24px 16px;background:var(--surface);border-radius:16px;padding:16px;border:1px solid var(--border); }
+    .sav-row  { display:flex;justify-content:space-between;align-items:center;margin-bottom:10px; }
+    .sav-title{ font-size:13px;font-weight:600;color:var(--text); }
+    .sav-pct  { font-size:20px;font-weight:700; }
+    .sav-bar-bg   { height:8px;background:rgba(255,255,255,0.06);border-radius:8px; }
+    .sav-bar-fill { height:8px;border-radius:8px;transition:width 0.6s; }
+    .sav-hint { font-size:11px;color:var(--text-muted);margin-top:8px; }
+    .cf-group { padding:0 24px;margin-bottom:20px; }
+    .cf-entry { background:var(--surface);border-radius:14px;padding:13px 14px;margin-bottom:8px;border:1px solid var(--border);display:flex;align-items:center;gap:12px; }
+    .cf-icon  { width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0; }
+    .cf-info  { flex:1; }
+    .cf-name  { font-size:13px;font-weight:500;color:var(--text); }
+    .cf-cat   { font-size:11px;color:var(--text-muted);margin-top:1px; }
+    .cf-amt   { font-size:14px;font-weight:700; }
+    .cf-del   { width:26px;height:26px;border-radius:50%;background:var(--warn-dim);border:none;color:var(--warn);font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity 0.15s; }
+    .cf-entry:hover .cf-del { opacity:1; }
+    .empty-month { padding:28px 0;text-align:center;color:var(--text-muted);font-size:13px; }
+    .empty-month div:first-child { font-size:28px;margin-bottom:8px; }
+    .add-row-btn { height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;cursor:pointer;margin-top:2px; }
+    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:flex-end;justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { width:375px;background:var(--surface2);border-radius:28px 28px 0 0;padding:0 24px 40px;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);max-height:90vh;overflow-y:auto; }
+    .modal-overlay.open .modal { transform:translateY(0); }
+    .modal-handle { width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 18px; }
+    .modal-title  { font-size:18px;font-weight:700;color:var(--text);margin-bottom:18px; }
+    .type-switch  { display:flex;background:var(--surface);border-radius:14px;padding:4px;gap:4px;margin-bottom:18px; }
+    .ts-btn { flex:1;height:38px;border-radius:10px;border:none;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.2s;color:var(--text-muted);background:transparent; }
+    .ts-btn.active-income  { background:var(--ok-dim);color:var(--ok); }
+    .ts-btn.active-expense { background:var(--warn-dim);color:var(--warn); }
+    .cat-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px; }
+    .cat-btn  { background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:all 0.15s; }
+    .cat-btn.selected { border-color:var(--accent);background:var(--accent-dim); }
+    .cat-btn-icon  { font-size:20px; }
+    .cat-btn-label { font-size:10px;color:var(--text-muted); }
+    .month-select  { width:100%;height:48px;background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:0 16px;font-size:15px;font-family:inherit;color:var(--text);outline:none;margin-bottom:14px;appearance:none; }
+    .month-select:focus { border-color:var(--accent); }
+    .field { margin-bottom:14px; }
+    .field label { display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px; }
+    .field input { width:100%;height:48px;background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:0 16px;font-size:15px;font-family:inherit;color:var(--text);outline:none;transition:border-color 0.15s; }
+    .field input:focus { border-color:var(--accent); }
+    .field input::placeholder { color:var(--text-muted); }
+    .amount-wrap { position:relative; }
+    .amount-prefix { position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-muted); }
+    .amount-wrap input { padding-left:28px; }
+    .save-btn { width:100%;height:52px;border:none;border-radius:16px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px; }
+    .save-btn.income  { background:var(--ok);color:#0f1f18; }
+    .save-btn.expense { background:var(--accent);color:#0f0f13; }
+    .save-btn:disabled { opacity:0.5;cursor:not-allowed; }
+    .loading-screen { position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200; }
+    .spin { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .loading-screen p { font-size:13px;color:var(--text-muted); }
+  </style>
+</head>
+<body>
+<div class="loading-screen" id="loading"><div class="spin"></div><p>加载中…</p></div>
+<div class="phone" id="app" style="display:none">
+  <div class="status-bar">
+    <span class="status-time">9:41</span>
+    <div class="status-icons"><svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg></div>
+  </div>
+  <div class="screen-content">
+    <div class="page-header"><div class="page-title">收支记录</div><div class="page-sub">记录每月收入与支出</div></div>
+    <div class="month-bar">
+      <div class="month-btn" id="prev-month">‹</div>
+      <div class="month-label" id="month-display">—</div>
+      <div class="month-btn" id="next-month">›</div>
+    </div>
+    <div class="summary-row">
+      <div class="summary-card"><div class="summary-label">收入</div><div class="summary-val" id="sum-income" style="color:var(--ok)">—</div></div>
+      <div class="summary-card"><div class="summary-label">支出</div><div class="summary-val" id="sum-expense" style="color:var(--warn)">—</div></div>
+      <div class="summary-card"><div class="summary-label">结余</div><div class="summary-val" id="sum-saving">—</div></div>
+    </div>
+    <div class="sav-card">
+      <div class="sav-row"><span class="sav-title">本月储蓄率</span><span class="sav-pct" id="sav-pct">—</span></div>
+      <div class="sav-bar-bg"><div class="sav-bar-fill" id="sav-bar"></div></div>
+      <div class="sav-hint" id="sav-hint">建议储蓄率 ≥ 20%</div>
+    </div>
+    <div id="cf-lists"></div>
+  </div>
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="10" width="8" height="10" rx="2" fill="currentColor"/><rect x="12" y="2" width="8" height="18" rx="2" fill="currentColor" opacity="0.6"/></svg><span>总览</span></a>
+    <a href="assets.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="9" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="7" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/></svg><span>资产</span></a>
+    <a href="cashflow.html" class="nav-item active"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M4 7l4-4 4 4M18 15l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>收支</span></a>
+    <a href="diagnosis.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 6v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>诊断</span></a>
+    <a href="advice.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 17 L7 11 L11 14 L15 7 L19 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>目标</span></a>
+  </nav>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">记一笔</div>
+    <div class="type-switch">
+      <button class="ts-btn active-income" id="ts-income">＋ 收入</button>
+      <button class="ts-btn"              id="ts-expense">－ 支出</button>
+    </div>
+    <div class="field"><label>分类</label><div class="cat-grid" id="cat-grid"></div></div>
+    <div class="field"><label>备注（可选）</label><input type="text" id="input-name" placeholder="如：6月工资" maxlength="20"></div>
+    <div class="field"><label>金额（元）</label><div class="amount-wrap"><span class="amount-prefix">¥</span><input type="number" id="input-amount" placeholder="0" min="0" inputmode="decimal"></div></div>
+    <div class="field"><label>所属月份</label><select class="month-select" id="input-month"></select></div>
+    <button class="save-btn income" id="save-btn">保存收入</button>
+  </div>
+</div>
+
+<script src="supabase.js"></script>
+<script>
+let currentMonth = '';
+let modalType    = 'income';
+let selectedCat  = '';
+let allRows      = [];
+
+function allMonths() {
+  const months = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  return months;
+}
+function fmtMonth(ym) {
+  if (!ym) return '—';
+  const [y,m] = ym.split('-');
+  return `${y}年 ${parseInt(m)}月`;
+}
+
+async function render() {
+  const user = await requireAuth();
+  if (!user) return;
+
+  if (!currentMonth) {
+    const now = new Date();
+    currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  }
+
+  allRows = await dbLoadCashflow();
+  const cf = calcCashflow(allRows, currentMonth);
+  const months = allMonths();
+
+  document.getElementById('month-display').textContent = fmtMonth(currentMonth);
+  document.getElementById('prev-month').style.opacity = months.indexOf(currentMonth) > 0 ? '1' : '0.3';
+  document.getElementById('next-month').style.opacity = months.indexOf(currentMonth) < months.length-1 ? '1' : '0.3';
+
+  document.getElementById('sum-income').textContent = fmt(cf.income);
+  document.getElementById('sum-expense').textContent = fmt(cf.expense);
+  const savEl = document.getElementById('sum-saving');
+  savEl.textContent = fmt(cf.saving);
+  savEl.style.color = cf.saving >= 0 ? 'var(--ok)' : 'var(--warn)';
+
+  const sr = parseInt(cf.savRate);
+  const pctEl = document.getElementById('sav-pct');
+  pctEl.textContent = cf.income > 0 ? sr + '%' : '—';
+  pctEl.style.color = sr >= 20 ? 'var(--ok)' : sr >= 10 ? 'var(--mid)' : 'var(--warn)';
+  const barEl = document.getElementById('sav-bar');
+  barEl.style.width = Math.max(0, Math.min(100, sr)) + '%';
+  barEl.style.background = sr >= 20 ? 'var(--ok)' : sr >= 10 ? 'var(--mid)' : 'var(--warn)';
+  document.getElementById('sav-hint').textContent =
+    cf.income === 0 ? '本月还没有收入记录' :
+    sr >= 20 ? `✅ 本月储蓄率达标（≥20%）` :
+    sr >= 10 ? `⚠️ 距目标还差 ${20-sr}%` :
+               `🔴 储蓄率偏低，检查支出`;
+
+  renderGroups(cf.rows);
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+
+function renderGroups(rows) {
+  const listEl = document.getElementById('cf-lists');
+  listEl.innerHTML = '';
+  const incomes  = rows.filter(r => r.type === 'income');
+  const expenses = rows.filter(r => r.type === 'expense');
+  renderGroup(listEl, '💚 收入', incomes,  'income');
+  renderGroup(listEl, '🔴 支出', expenses, 'expense');
+}
+
+function renderGroup(container, title, rows, type) {
+  const group = document.createElement('div');
+  group.className = 'cf-group';
+  group.innerHTML = `<div class="group-label">${title}</div>`;
+  if (rows.length === 0) {
+    group.innerHTML += `<div class="empty-month"><div>${type==='income'?'💳':'🧾'}</div>本月暂无${type==='income'?'收入':'支出'}记录</div>`;
+  } else {
+    rows.forEach(row => {
+      const cat   = getCfCat(row.type, row.category);
+      const color = type === 'income' ? 'var(--ok)' : 'var(--warn)';
+      const iconBg= type === 'income' ? 'rgba(92,240,176,0.12)' : 'rgba(255,107,107,0.1)';
+      const el = document.createElement('div');
+      el.className = 'cf-entry';
+      el.innerHTML = `
+        <div class="cf-icon" style="background:${iconBg}">${row.icon || cat.icon}</div>
+        <div class="cf-info">
+          <div class="cf-name">${row.name || cat.label}</div>
+          <div class="cf-cat">${cat.label}</div>
+        </div>
+        <div class="cf-amt" style="color:${color}">${type==='income'?'+':'-'}${fmtFull(row.amount)}</div>
+        <button class="cf-del" data-id="${row.id}">✕</button>`;
+      group.appendChild(el);
+    });
+  }
+  const isIncome = type === 'income';
+  const addBtn = document.createElement('div');
+  addBtn.className = 'add-row-btn';
+  addBtn.style.cssText = `border:1.5px dashed ${isIncome?'rgba(92,240,176,0.3)':'rgba(200,240,80,0.3)'};background:${isIncome?'var(--ok-dim)':'var(--accent-dim)'};color:${isIncome?'var(--ok)':'var(--accent)'};`;
+  addBtn.textContent = `＋ 记${type==='income'?'一笔收入':'一笔支出'}`;
+  addBtn.addEventListener('click', () => openModal(type));
+  group.appendChild(addBtn);
+  container.appendChild(group);
+  group.querySelectorAll('.cf-del').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('确认删除？')) return;
+      btn.textContent = '…';
+      await dbDeleteCashflow(btn.dataset.id);
+      await render();
+    });
+  });
+}
+
+document.getElementById('prev-month').addEventListener('click', () => {
+  const months = allMonths();
+  const idx = months.indexOf(currentMonth);
+  if (idx > 0) { currentMonth = months[idx-1]; render(); }
+});
+document.getElementById('next-month').addEventListener('click', () => {
+  const months = allMonths();
+  const idx = months.indexOf(currentMonth);
+  if (idx < months.length-1) { currentMonth = months[idx+1]; render(); }
+});
+
+function openModal(type) {
+  modalType = type;
+  selectedCat = type === 'income' ? CF_INCOME_CATS[0].id : CF_EXPENSE_CATS[0].id;
+  document.getElementById('input-name').value = '';
+  document.getElementById('input-amount').value = '';
+  const incBtn = document.getElementById('ts-income');
+  const expBtn = document.getElementById('ts-expense');
+  incBtn.className = 'ts-btn' + (type==='income'?' active-income':'');
+  expBtn.className = 'ts-btn' + (type==='expense'?' active-expense':'');
+  const sel = document.getElementById('input-month');
+  sel.innerHTML = '';
+  allMonths().reverse().forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = fmtMonth(m);
+    if (m === currentMonth) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.textContent = type==='income' ? '保存收入' : '保存支出';
+  saveBtn.className   = 'save-btn ' + type;
+  renderCatGrid(type);
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('input-amount').focus(), 350);
+}
+
+function renderCatGrid(type) {
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = '';
+  const cats = type==='income' ? CF_INCOME_CATS : CF_EXPENSE_CATS;
+  cats.forEach((cat, i) => {
+    const el = document.createElement('div');
+    el.className = 'cat-btn' + (i===0?' selected':'');
+    el.innerHTML = `<span class="cat-btn-icon">${cat.icon}</span><span class="cat-btn-label">${cat.label}</span>`;
+    el.addEventListener('click', () => {
+      selectedCat = cat.id;
+      grid.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+    grid.appendChild(el);
+  });
+}
+
+['ts-income','ts-expense'].forEach(id => {
+  document.getElementById(id).addEventListener('click', () => {
+    const t = id==='ts-income'?'income':'expense';
+    if (t===modalType) return;
+    modalType = t;
+    document.getElementById('ts-income').className  = 'ts-btn'+(t==='income'?' active-income':'');
+    document.getElementById('ts-expense').className = 'ts-btn'+(t==='expense'?' active-expense':'');
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.textContent = t==='income'?'保存收入':'保存支出';
+    saveBtn.className   = 'save-btn '+t;
+    selectedCat = t==='income'?CF_INCOME_CATS[0].id:CF_EXPENSE_CATS[0].id;
+    renderCatGrid(t);
+  });
+});
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id==='modal') document.getElementById('modal').classList.remove('open');
+});
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const name   = document.getElementById('input-name').value.trim();
+  const amount = parseFloat(document.getElementById('input-amount').value);
+  const month  = document.getElementById('input-month').value;
+  if (!amount || amount<=0) { alert('请填写正确的金额'); return; }
+  const cat = getCfCat(modalType, selectedCat);
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  await dbAddCashflow({ type:modalType, category:selectedCat, name:name||cat.label, amount, date:month, icon:cat.icon });
+  btn.disabled = false; btn.textContent = modalType==='income'?'保存收入':'保存支出';
+  document.getElementById('modal').classList.remove('open');
+  await render();
+});
+
+render();
+</script>
+</body>
+</html>

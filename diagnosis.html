@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>财务健康 · 诊断</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .diag-banner {
+      margin: 0 24px 16px;
+      border-radius: 24px; padding: 24px;
+      border: 1px solid rgba(240,184,76,0.2);
+      background: linear-gradient(135deg, #1e1628, #16162a);
+      display: flex; align-items: center; gap: 20px;
+    }
+    .diag-ring-wrap { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+    .diag-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .diag-ring-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; line-height: 1;
+    }
+    .diag-ring-score { font-size: 26px; font-weight: 700; color: var(--text); }
+    .diag-ring-sub { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+    .diag-info { flex: 1; }
+    .diag-grade-pill {
+      display: inline-block; font-size: 12px; font-weight: 600;
+      padding: 3px 12px; border-radius: 20px; margin-bottom: 8px;
+    }
+    .diag-headline { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.5; }
+
+    .problem-banner {
+      margin: 0 24px 16px;
+      border-radius: 16px; padding: 14px 16px;
+      display: flex; gap: 10px; align-items: flex-start;
+      background: var(--warn-dim); border: 1px solid rgba(255,107,107,0.2);
+    }
+    .problem-banner.ok { background: var(--ok-dim); border-color: rgba(92,240,176,0.2); }
+    .problem-icon { font-size: 18px; flex-shrink: 0; }
+    .problem-text { font-size: 13px; color: var(--text); line-height: 1.6; }
+    .problem-text strong.w { color: var(--warn); }
+    .problem-text strong.g { color: var(--ok); }
+
+    .dim-list { padding: 0 24px; display: flex; flex-direction: column; gap: 12px; }
+    .dim-card {
+      background: var(--surface); border-radius: 18px;
+      padding: 16px 18px; border: 1px solid var(--border);
+    }
+    .dim-top {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 4px;
+    }
+    .dim-name-wrap { display: flex; align-items: center; gap: 8px; }
+    .dim-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .dim-score-badge { font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
+    .badge-warn { background: var(--warn-dim); color: var(--warn); }
+    .badge-ok   { background: var(--ok-dim);   color: var(--ok); }
+    .badge-mid  { background: var(--mid-dim);  color: var(--mid); }
+
+    .dim-actual-row {
+      display: flex; justify-content: space-between;
+      align-items: baseline; margin-bottom: 8px;
+    }
+    .dim-actual { font-size: 20px; font-weight: 700; }
+    .dim-bench  { font-size: 11px; color: var(--text-muted); }
+
+    .dim-progress-bg { height: 6px; background: rgba(255,255,255,0.06); border-radius: 6px; margin-bottom: 8px; }
+    .dim-progress-fill { height: 6px; border-radius: 6px; transition: width 0.8s cubic-bezier(0.22,1,0.36,1); }
+    .dim-desc { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .dim-tip {
+      margin-top: 8px; padding: 8px 10px;
+      border-radius: 10px; font-size: 11px; line-height: 1.5;
+    }
+    .tip-warn { background: var(--warn-dim); color: var(--warn); }
+    .tip-ok   { background: var(--ok-dim);   color: var(--ok); }
+    .tip-mid  { background: var(--mid-dim);  color: var(--mid); }
+
+    .cta-wrap { padding: 20px 24px 0; }
+    .cta-btn {
+      display: flex; align-items: center; justify-content: center;
+      height: 52px; border-radius: 16px;
+      background: var(--accent); color: #0f0f13;
+      font-size: 15px; font-weight: 700; text-decoration: none;
+    }
+
+    .empty-diag { margin: 48px 24px; text-align: center; color: var(--text-muted); }
+    .empty-diag .ei { font-size: 48px; margin-bottom: 16px; }
+    .empty-diag p { font-size: 14px; line-height: 1.7; }
+    .empty-diag a { color: var(--accent); text-decoration: none; }
+
+    .loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200;}
+    .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loading-screen p{font-size:13px;color:var(--text-muted);}
+  </style>
+</head>
+<body>
+<div class="loading-screen" id="loading"><div class="spin"></div><p>加载中…</p></div>
+<div class="phone" id="app" style="display:none">
+  <div class="status-bar">
+    <span class="status-time">9:41</span>
+    <div class="status-icons">
+      <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg>
+    </div>
+  </div>
+
+  <div class="screen-content">
+    <div class="page-header">
+      <div class="page-title">财务诊断报告</div>
+      <div class="page-sub" id="diag-sub">基于你的真实数据生成</div>
+    </div>
+    <div id="diag-body"></div>
+  </div>
+
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="10" width="8" height="10" rx="2" fill="currentColor"/><rect x="12" y="2" width="8" height="18" rx="2" fill="currentColor" opacity="0.6"/></svg>
+      <span>总览</span>
+    </a>
+    <a href="assets.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="9" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="7" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>资产</span>
+    </a>
+    <a href="cashflow.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M4 7l4-4 4 4M18 15l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>收支</span>
+    </a>
+    <a href="diagnosis.html" class="nav-item active">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 6v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>诊断</span>
+    </a>
+    <a href="advice.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 17 L7 11 L11 14 L15 7 L19 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>目标</span>
+    </a>
+  </nav>
+</div>
+
+<script src="supabase.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────
+//  诊断引擎
+// ─────────────────────────────────────────────────────────
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function scoreStyle(s){
+  if(s>=75) return {bar:'var(--ok)',  badge:'badge-ok',  tip:'tip-ok' };
+  if(s>=45) return {bar:'var(--mid)', badge:'badge-mid', tip:'tip-mid'};
+  return          {bar:'var(--warn)', badge:'badge-warn', tip:'tip-warn'};
+}
+
+function runDiagnosis(data){
+  const stats = calcStats(data.assets);
+  const {byType, totalAssets, totalDebt, netWorth, debtRatio} = stats;
+  const dr = parseFloat(debtRatio);
+  const hist = data.history || [];
+
+  // 月均净资产变化（有历史时使用）
+  let monthlyDelta = null;
+  if(hist.length >= 2){
+    const diffs = [];
+    for(let i=1;i<hist.length;i++) diffs.push(hist[i].netWorth - hist[i-1].netWorth);
+    monthlyDelta = diffs.reduce((a,b)=>a+b,0)/diffs.length;
+  }
+
+  // ── 1. 应急资金 ──────────────────────────────────────
+  // 估算月支出：无收支数据时用 总资产×2% 作保守代理
+  const estMonthExp = totalAssets > 0 ? Math.max(totalAssets * 0.02, 2000) : 3000;
+  const emMonths = byType.cash / estMonthExp;
+  let emScore;
+  if(emMonths>=6) emScore=100;
+  else if(emMonths>=3) emScore=80;
+  else if(emMonths>=1) emScore=50;
+  else if(emMonths>=0.5) emScore=25;
+  else emScore=10;
+
+  const dim1 = {
+    icon:'🆘', name:'应急资金',
+    score: emScore,
+    actual: emMonths.toFixed(1)+'个月',
+    bench: '目标：≥ 3 个月',
+    desc: emMonths>=6
+      ? `现金储备约 ${emMonths.toFixed(1)} 个月支出，远超安全线，非常健康。`
+      : emMonths>=3
+      ? `现金储备约 ${emMonths.toFixed(1)} 个月支出，达到基本安全标准。`
+      : `现金储备仅约 ${emMonths.toFixed(1)} 个月支出，低于 3 个月的安全线。`,
+    tip: emMonths<3
+      ? `💡 建议将现金存款提升至 ${fmt(estMonthExp*3)}（估算3个月支出）`
+      : null
+  };
+
+  // ── 2. 负债健康度 ─────────────────────────────────────
+  let debtScore;
+  if(dr===0) debtScore=100;
+  else if(dr<=15) debtScore=95;
+  else if(dr<=30) debtScore=80;
+  else if(dr<=50) debtScore=55;
+  else if(dr<=70) debtScore=30;
+  else debtScore=10;
+
+  const dim2 = {
+    icon:'💳', name:'负债健康度',
+    score: debtScore,
+    actual: dr+'%',
+    bench: '健康线：≤ 30%',
+    desc: dr===0
+      ? '目前没有任何负债，财务自由度极高！'
+      : dr<=30
+      ? `负债率 ${dr}%，处于健康区间（≤30%），结构合理。`
+      : `负债率 ${dr}%，超出健康线，建议优先减少高息负债。`,
+    tip: dr>30
+      ? `💡 目标：将负债降至 ${fmt(totalAssets*0.3)}（总资产30%）`
+      : null
+  };
+
+  // ── 3. 资产结构 ───────────────────────────────────────
+  // 评估流动资产占比（现金+投资 vs 固定）
+  const liquid = byType.cash + byType.investment;
+  const liquidRatio = totalAssets>0 ? liquid/totalAssets : 0;
+  // 有现金+投资+固定三类各有则高分
+  const typeCount = ['cash','investment','fixed'].filter(t=>byType[t]>0).length;
+  const structScore = Math.round(
+    clamp(liquidRatio*60, 0, 60) +   // 流动性越高越好，最高60分
+    typeCount * 13                    // 每多一类加13分，满3类=39分
+  );
+
+  const dim3 = {
+    icon:'📊', name:'资产结构',
+    score: clamp(structScore, 5, 100),
+    actual: (liquidRatio*100).toFixed(0)+'% 流动',
+    bench: '建议流动资产 ≥ 40%',
+    desc: liquidRatio>=0.5
+      ? `流动资产（现金+投资）占 ${(liquidRatio*100).toFixed(0)}%，资产灵活度高。`
+      : liquidRatio>=0.3
+      ? `流动资产占 ${(liquidRatio*100).toFixed(0)}%，基本合理，可逐步提升。`
+      : `流动资产仅占 ${(liquidRatio*100).toFixed(0)}%，固定资产比重过高，流动性偏低。`,
+    tip: liquidRatio<0.3
+      ? '💡 建议减少闲置固定资产，将更多资金配置到流动资产'
+      : typeCount<2
+      ? '💡 建议增加投资类资产，分散单一资产风险'
+      : null
+  };
+
+  // ── 4. 储蓄能力（优先读收支记录，降级用历史快照）─────────
+  let savScore, savActual, savDesc, savTip;
+  const cfMonths = [...new Set((data.cashflow||[]).map(c=>c.date))].sort();
+  const latestCfMonth = cfMonths[cfMonths.length-1] || null;
+  if(latestCfMonth){
+    const cf = calcCashflow(data.cashflow||[], latestCfMonth);
+    const sr = parseInt(cf.savRate);
+    savScore  = sr>=30?100:sr>=20?85:sr>=10?60:sr>=0?35:10;
+    savActual = cf.income>0 ? cf.savRate+'%' : '数据不足';
+    const [y,m] = latestCfMonth.split('-');
+    const mLabel = parseInt(m)+'月';
+    savDesc = cf.income===0
+      ? `${mLabel}还没有收入记录，无法计算储蓄率。`
+      : sr>=20
+      ? `${mLabel}储蓄率 ${sr}%，达到建议水平（≥20%），继续保持！`
+      : sr>=10
+      ? `${mLabel}储蓄率 ${sr}%，离目标 20% 还有差距，检查大项支出。`
+      : `${mLabel}储蓄率仅 ${sr}%，建议削减非必要支出。`;
+    savTip = sr<20 && cf.income>0
+      ? `💡 前往「收支」页调整支出，目标储蓄率 ≥ 20%`
+      : null;
+  } else if(monthlyDelta !== null){
+    const rate = totalAssets>0 ? monthlyDelta/totalAssets : 0;
+    savScore  = clamp(Math.round(rate*1000+50), 5, 100);
+    savActual = (monthlyDelta>=0?'+':'')+fmt(monthlyDelta)+'/月';
+    savDesc   = monthlyDelta>0
+      ? `近期净资产月均增长 ${fmt(monthlyDelta)}，储蓄正在积累。`
+      : `近期净资产月均减少 ${fmt(Math.abs(monthlyDelta))}，需关注支出。`;
+    savTip    = '💡 前往「收支」页记录收支，获取精准储蓄率';
+  } else {
+    savScore  = 40;
+    savActual = '待录入';
+    savDesc   = '前往「收支」页面记录收入和支出，系统将自动计算储蓄率。';
+    savTip    = '💡 记录一个月的收支，即可获得精准储蓄率评分';
+  }
+
+  const dim4 = {
+    icon:'💰', name:'储蓄能力',
+    score: savScore,
+    actual: savActual,
+    bench: '建议储蓄率 ≥ 20%',
+    desc: savDesc,
+    tip: savTip
+  };
+
+
+  // ── 5. 净资产成长 ─────────────────────────────────────
+  // 根据历史趋势判断是否持续增长
+  let growScore, growActual, growDesc, growTip;
+  if(hist.length>=3){
+    const first = hist[0].netWorth;
+    const last  = hist[hist.length-1].netWorth;
+    const totalGrow = last - first;
+    // 计算有多少个月是正增长
+    let positiveMonths = 0;
+    for(let i=1;i<hist.length;i++){
+      if(hist[i].netWorth > hist[i-1].netWorth) positiveMonths++;
+    }
+    const growRate = positiveMonths/(hist.length-1);
+    growScore = Math.round(growRate*70 + (totalGrow>0?30:0));
+    growActual = (totalGrow>=0?'+':'')+fmt(totalGrow);
+    growDesc = growRate>=0.7
+      ? `${hist.length} 个记录中 ${positiveMonths} 次净增长，趋势稳健向上。`
+      : growRate>=0.4
+      ? `净资产有增有降，总体${totalGrow>=0?'略有增长':'略有下降'}，需保持稳定。`
+      : `净资产波动较大，建议检查大额支出或投资亏损。`;
+    growTip = growRate<0.5 ? '💡 建议减少不必要的大额支出，稳定增加净资产' : null;
+  } else {
+    growScore = 50;
+    growActual = '数据积累中';
+    growDesc = '继续录入资产数据，系统将分析你的净资产成长趋势。';
+    growTip = '💡 坚持每月更新，3个月后即可看到完整趋势';
+  }
+
+  const dim5 = {
+    icon:'🌱', name:'净资产成长',
+    score: clamp(growScore,5,100),
+    actual: growActual,
+    bench: '目标：持续正增长',
+    desc: growDesc,
+    tip: growTip
+  };
+
+  // ── 综合评分（加权平均）────────────────────────────────
+  const weights = [0.25, 0.25, 0.20, 0.15, 0.15];
+  const dims = [dim1, dim2, dim3, dim4, dim5];
+  const total = Math.round(
+    dims.reduce((sum,d,i) => sum + d.score * weights[i], 0)
+  );
+
+  return { total, dims };
+}
+
+// ─────────────────────────────────────────────────────────
+//  渲染
+// ─────────────────────────────────────────────────────────
+async function render(){
+  const user = await requireAuth();
+  if(!user) return;
+  const assets  = await dbLoadAssets();
+  const history = await dbLoadHistory();
+  const cfRows  = await dbLoadCashflow();
+  const data = { assets, history: history.map(h=>({date:h.date,netWorth:h.netWorth})), cashflow: cfRows };
+  const hasAssets = data.assets.length > 0;
+
+  if(!hasAssets){
+    document.getElementById('diag-body').innerHTML = `
+      <div class="empty-diag">
+        <div class="ei">📋</div>
+        <p>还没有资产数据。<br>先去<a href="assets.html">录入你的资产</a>，<br>系统才能为你生成诊断报告。</p>
+      </div>`;
+    return;
+  }
+
+  const {total, dims} = runDiagnosis(data);
+  const ss = scoreStyle(total);
+
+  // 问题列表
+  const problems = dims.filter(d=>d.score<50).map(d=>d.name);
+  const isHealthy = problems.length===0;
+
+  // 总评描述
+  const headline = total>=80
+    ? '你的财务状况非常健康，继续保持！'
+    : total>=60
+    ? '整体良好，还有 '+problems.join('、')+' 方面可以改善。'
+    : total>=40
+    ? problems.join('、')+' 是当前主要薄弱点，需要优先改善。'
+    : '财务状况需要认真关注，建议从降低负债和增加应急储备开始。';
+
+  const gradeLabel = total>=80?'健康 ✅':total>=60?'良好 👍':total>=40?'待改善 ⚠️':'需关注 🔴';
+
+  // 渲染 Banner
+  const ringOffset = (2*Math.PI*34*(1-total/100)).toFixed(1);
+  const bannerColor = ss.bar;
+
+  let html = `
+    <!-- 总分 Banner -->
+    <div class="diag-banner">
+      <div class="diag-ring-wrap">
+        <svg viewBox="0 0 88 88">
+          <circle fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7" cx="44" cy="44" r="34"/>
+          <circle fill="none" stroke="${bannerColor}" stroke-width="7"
+            stroke-linecap="round" cx="44" cy="44" r="34"
+            stroke-dasharray="${(2*Math.PI*34).toFixed(1)}"
+            stroke-dashoffset="${ringOffset}"/>
+        </svg>
+        <div class="diag-ring-center">
+          <span class="diag-ring-score">${total}</span>
+          <span class="diag-ring-sub">/100</span>
+        </div>
+      </div>
+      <div class="diag-info">
+        <div class="diag-grade-pill" style="background:${bannerColor}22;color:${bannerColor}">${gradeLabel}</div>
+        <div class="diag-headline">${headline}</div>
+      </div>
+    </div>
+
+    <!-- 问题/健康提示 -->
+    <div class="problem-banner ${isHealthy?'ok':''}">
+      <div class="problem-icon">${isHealthy?'✨':'🔍'}</div>
+      <div class="problem-text">`;
+
+  if(isHealthy){
+    html += `所有维度评分均在健康区间，<strong class="g">财务结构良好</strong>，继续保持当前习惯。`;
+  } else {
+    html += `主要问题：`;
+    html += problems.map(p=>`<strong class="w">${p}</strong>`).join('、');
+    html += `。建议优先从得分最低的维度开始改善。`;
+  }
+
+  html += `</div></div>
+
+    <!-- 维度标题 -->
+    <div class="section-header" style="padding-bottom:4px">
+      <span class="section-title">各维度评分</span>
+    </div>
+
+    <!-- 各维度 -->
+    <div class="dim-list">`;
+
+  dims.forEach(d=>{
+    const s = scoreStyle(d.score);
+    html += `
+      <div class="dim-card">
+        <div class="dim-top">
+          <div class="dim-name-wrap">
+            <span>${d.icon}</span>
+            <span class="dim-name">${d.name}</span>
+          </div>
+          <div class="dim-score-badge ${s.badge}">${d.score}分</div>
+        </div>
+        <div class="dim-actual-row">
+          <span class="dim-actual" style="color:${s.bar}">${d.actual}</span>
+          <span class="dim-bench">${d.bench}</span>
+        </div>
+        <div class="dim-progress-bg">
+          <div class="dim-progress-fill" style="width:${d.score}%;background:${s.bar}"></div>
+        </div>
+        <div class="dim-desc">${d.desc}</div>
+        ${d.tip ? `<div class="dim-tip ${s.tip}">${d.tip}</div>` : ''}
+      </div>`;
+  });
+
+  html += `</div>
+
+    <!-- CTA -->
+    <div class="cta-wrap">
+      <a href="advice.html" class="cta-btn">查看行动建议 →</a>
+    </div>`;
+
+  document.getElementById('diag-body').innerHTML = html;
+  document.getElementById('diag-sub').textContent =
+    '最后更新：' + new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric'});
+}
+
+render().then(() => {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = '';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>财务健康 · 目标</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="base.css">
+  <style>
+    /* ── 首要任务卡 ── */
+    .priority-card {
+      margin: 0 24px 16px;
+      background: linear-gradient(135deg, #1a1f14, #141a1a);
+      border-radius: 20px; padding: 20px;
+      border: 1px solid rgba(200,240,80,0.2);
+      position: relative; overflow: hidden;
+    }
+    .priority-card::before {
+      content: ''; position: absolute;
+      top: -40px; right: -40px; width: 130px; height: 130px;
+      background: radial-gradient(circle, rgba(200,240,80,0.07) 0%, transparent 70%);
+    }
+    .priority-tag {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+      color: var(--accent); text-transform: uppercase; margin-bottom: 8px;
+    }
+    .priority-title { font-size: 17px; font-weight: 700; color: var(--text); line-height: 1.4; margin-bottom: 8px; }
+    .priority-desc  { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+
+    /* ── 目标进度卡 ── */
+    .goal-card {
+      margin: 0 24px 16px;
+      background: linear-gradient(135deg,rgba(200,240,80,0.07),rgba(92,240,176,0.05));
+      border-radius: 20px; padding: 20px;
+      border: 1px solid rgba(200,240,80,0.18);
+    }
+    .goal-header-row { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+    .goal-name   { font-size:15px; font-weight:700; color:var(--text); }
+    .goal-status { font-size:11px; color:var(--text-muted); margin-top:3px; }
+    .goal-pct    { font-size:26px; font-weight:700; color:var(--accent); }
+    .goal-bar-bg { height:8px; background:rgba(255,255,255,0.06); border-radius:8px; margin-bottom:12px; }
+    .goal-bar-fill { height:8px; border-radius:8px; background:linear-gradient(90deg,var(--accent),var(--ok)); transition: width 0.8s cubic-bezier(0.22,1,0.36,1); }
+    .goal-meta { display:flex; justify-content:space-between; }
+    .goal-meta-item { font-size:11px; color:var(--text-muted); }
+    .goal-meta-item strong { display:block; font-size:13px; color:var(--text); margin-top:2px; }
+
+    /* ── 行动步骤 ── */
+    .steps-list { padding: 0 24px; display:flex; flex-direction:column; gap:10px; }
+    .step-card {
+      background:var(--surface); border-radius:16px;
+      padding:14px 16px; border:1px solid var(--border);
+      display:flex; gap:12px; align-items:flex-start;
+    }
+    .step-num {
+      width:26px; height:26px; border-radius:50%; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:700;
+    }
+    .step-text { font-size:13px; color:var(--text); line-height:1.6; }
+    .step-text span { color:var(--text-muted); }
+
+    /* ── 其他目标列表 ── */
+    .other-goals { padding: 0 24px; display:flex; flex-direction:column; gap:10px; }
+    .other-goal-card {
+      background:var(--surface); border-radius:16px;
+      padding:14px 16px; border:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+    }
+    .og-icon { font-size:20px; }
+    .og-info { flex:1; }
+    .og-name  { font-size:13px; font-weight:600; color:var(--text); }
+    .og-status{ font-size:11px; color:var(--text-muted); margin-top:2px; }
+    .og-badge {
+      font-size:11px; font-weight:600;
+      padding:3px 10px; border-radius:20px;
+    }
+    .og-badge.done   { background:var(--ok-dim); color:var(--ok); }
+    .og-badge.active { background:var(--accent-dim); color:var(--accent); }
+    .og-badge.locked { background:rgba(255,255,255,0.05); color:var(--text-muted); filter:blur(0); }
+
+    /* ── 空状态 ── */
+    .empty-advice { margin:48px 24px; text-align:center; color:var(--text-muted); }
+    .empty-advice .ei { font-size:48px; margin-bottom:16px; }
+    .empty-advice p   { font-size:14px; line-height:1.7; }
+    .empty-advice a   { color:var(--accent); text-decoration:none; }
+
+    /* ── 全部完成 ── */
+    .all-done {
+      margin: 24px; padding: 28px;
+      background: linear-gradient(135deg,rgba(92,240,176,0.1),rgba(200,240,80,0.08));
+      border-radius: 20px; border:1px solid rgba(92,240,176,0.2);
+      text-align: center;
+    }
+    .all-done .big { font-size: 48px; margin-bottom: 12px; }
+    .all-done h3 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .all-done p  { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+
+    .loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200;}
+    .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loading-screen p{font-size:13px;color:var(--text-muted);}
+  </style>
+</head>
+<body>
+<div class="loading-screen" id="loading"><div class="spin"></div><p>加载中…</p></div>
+<div class="phone" id="app" style="display:none">
+
+  <div class="status-bar">
+    <span class="status-time">9:41</span>
+    <div class="status-icons">
+      <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg>
+    </div>
+  </div>
+
+  <div class="screen-content">
+    <div class="page-header">
+      <div class="page-title">行动建议</div>
+      <div class="page-sub">根据你的财务状况个性化生成</div>
+    </div>
+    <div id="advice-body"></div>
+  </div>
+
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="10" width="8" height="10" rx="2" fill="currentColor"/><rect x="12" y="2" width="8" height="18" rx="2" fill="currentColor" opacity="0.6"/></svg>
+      <span>总览</span>
+    </a>
+    <a href="assets.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="9" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="7" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>资产</span>
+    </a>
+    <a href="cashflow.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M4 7l4-4 4 4M18 15l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>收支</span>
+    </a>
+    <a href="diagnosis.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 6v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>诊断</span>
+    </a>
+    <a href="advice.html" class="nav-item active">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 17 L7 11 L11 14 L15 7 L19 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>目标</span>
+    </a>
+  </nav>
+</div>
+
+<script src="supabase.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────
+//  建议引擎：根据真实数据生成优先任务 + 目标 + 步骤
+// ─────────────────────────────────────────────────────────
+function generateAdvice(data) {
+  const stats = calcStats(data.assets);
+  const { byType, totalAssets, totalDebt, netWorth, debtRatio } = stats;
+  const dr = parseFloat(debtRatio);
+  const estMonthExp = totalAssets > 0 ? Math.max(totalAssets * 0.02, 2000) : 3000;
+  const emMonths = byType.cash / estMonthExp;
+
+  // 生成所有潜在目标，按优先级排序
+  const goals = [];
+
+  // ── 目标1：应急资金 ───────────────────────────────────
+  const emTarget = estMonthExp * 3;
+  const emCurrent = byType.cash;
+  const emPct = Math.min(100, Math.round((emCurrent / emTarget) * 100));
+  const emDone = emMonths >= 3;
+  goals.push({
+    id: 'emergency',
+    icon: '🛡️',
+    name: '建立 3 个月应急资金',
+    status: `目标：${fmtFull(Math.round(emTarget))}（估算3个月支出）`,
+    pct: emPct,
+    current: fmtFull(emCurrent),
+    remaining: emDone ? '已达标 🎉' : fmtFull(Math.round(Math.max(0, emTarget - emCurrent))),
+    eta: emDone ? '已完成' : emCurrent > 0 ? `约 ${Math.ceil((emTarget - emCurrent) / estMonthExp)} 个月` : '—',
+    done: emDone,
+    priority: emMonths < 1 ? 1 : emMonths < 3 ? 2 : 10,
+    steps: emDone ? [] : [
+      { text: `每月固定划拨 <strong style="color:var(--accent)">${fmtFull(Math.round(estMonthExp * 0.5))}</strong>` + `<span> 到专属应急账户，与消费账户隔离</span>` },
+      { text: `将应急资金存入 <strong style="color:var(--accent)">货币基金</strong><span>（余额宝等），保持流动性并获利息</span>` },
+      { text: `目标存满 <strong style="color:var(--accent)">${fmtFull(Math.round(emTarget))}</strong><span>（估算 3 个月支出）再考虑其他优化</span>` },
+    ],
+    priorityTitle: '最薄弱的风险点',
+    priorityDesc: `你的现金储备约 ${emMonths.toFixed(1)} 个月支出，低于安全线。一旦失业或意外支出，可能被迫动用投资或借贷，应急资金是一切理财的基础。`,
+  });
+
+  // ── 目标2：降低负债率 ─────────────────────────────────
+  if (totalDebt > 0) {
+    const debtTarget = Math.round(totalAssets * 0.3);
+    const debtPct = dr <= 30 ? 100 : Math.round((1 - (dr - 30) / 70) * 100);
+    const debtDone = dr <= 30;
+    goals.push({
+      id: 'debt',
+      icon: '💳',
+      name: '将负债率降至 30% 以下',
+      status: `当前负债率 ${dr}%，目标 ≤ 30%`,
+      pct: Math.max(0, debtPct),
+      current: `负债 ${fmtFull(totalDebt)}`,
+      remaining: debtDone ? '已达标 🎉' : `需减少 ${fmtFull(Math.round(totalDebt - debtTarget))}`,
+      eta: debtDone ? '已完成' : '取决于还款节奏',
+      done: debtDone,
+      priority: dr > 50 ? 1 : dr > 30 ? 3 : 10,
+      steps: debtDone ? [] : [
+        { text: `信用卡 <strong style="color:var(--accent)">每月全额还款</strong><span>，杜绝利滚利</span>` },
+        { text: `优先偿还 <strong style="color:var(--warn)">利率最高</strong><span>的负债（通常是信用卡/消费贷）</span>` },
+        { text: `避免新增非必要负债<span>，直到负债率降至 30% 以下</span>` },
+      ],
+      priorityTitle: '高利息吞噬财富',
+      priorityDesc: `负债率 ${dr}% 超出健康线（≤30%）。高息负债每月消耗你的收入，是阻碍财富积累的隐形杀手。`,
+    });
+  }
+
+  // ── 目标3：增加投资资产 ───────────────────────────────
+  const hasInvestment = byType.investment > 0;
+  const invRatio = totalAssets > 0 ? byType.investment / totalAssets : 0;
+  const invDone = invRatio >= 0.2;
+  goals.push({
+    id: 'investment',
+    icon: '📈',
+    name: '建立投资组合（目标占比 20%）',
+    status: `当前投资占总资产 ${(invRatio * 100).toFixed(0)}%`,
+    pct: Math.min(100, Math.round(invRatio / 0.2 * 100)),
+    current: fmtFull(byType.investment),
+    remaining: invDone ? '已达标 🎉' : `还需投入 ${fmtFull(Math.round(Math.max(0, totalAssets * 0.2 - byType.investment)))}`,
+    eta: invDone ? '已完成' : '建议长期定投',
+    done: invDone,
+    priority: emDone && debtDone ? 4 : 8,
+    steps: invDone ? [] : [
+      { text: `先完成应急储备<span>，再将多余资金投入指数基金定投</span>` },
+      { text: `从 <strong style="color:var(--accent)">宽基指数基金</strong><span>（沪深300、标普500）开始，低成本分散风险</span>` },
+      { text: `坚持每月定投<span>，用时间平摊成本，不追涨杀跌</span>` },
+    ],
+    priorityTitle: '让钱生钱',
+    priorityDesc: `应急资金和负债控制好之后，投资是加速财富积累的关键。指数基金长期年化回报约 7-10%。`,
+  });
+
+  // 按优先级排序，取最优先的作为当前目标
+  goals.sort((a, b) => a.priority - b.priority);
+  const currentGoal = goals[0];
+  const otherGoals  = goals.slice(1);
+
+  return { currentGoal, otherGoals, stats };
+}
+
+// ─────────────────────────────────────────────────────────
+//  渲染
+// ─────────────────────────────────────────────────────────
+async function render() {
+  const user = await requireAuth();
+  if(!user) return;
+  const assets = await dbLoadAssets();
+  const cfRows = await dbLoadCashflow();
+  const data = { assets, cashflow: cfRows };
+  if (data.assets.length === 0) {
+    document.getElementById('advice-body').innerHTML = `
+      <div class="empty-advice">
+        <div class="ei">🗺️</div>
+        <p>还没有资产数据。<br>先去<a href="assets.html">录入你的资产</a>，<br>系统才能为你制定个性化建议。</p>
+      </div>`;
+    return;
+  }
+
+  const { currentGoal, otherGoals } = generateAdvice(data);
+
+  // 检查是否所有目标都完成
+  const allDone = currentGoal.done && otherGoals.every(g => g.done);
+  if (allDone) {
+    document.getElementById('advice-body').innerHTML = `
+      <div class="all-done">
+        <div class="big">🏆</div>
+        <h3>财务目标全部达成！</h3>
+        <p>你的应急资金、负债率和投资配置都已达到健康标准。<br>继续保持，考虑设定更进一步的目标。</p>
+      </div>`;
+    return;
+  }
+
+  let html = '';
+
+  // ── 当前首要任务 ──────────────────────────────────────
+  html += `
+    <div class="priority-card">
+      <div class="priority-tag">🎯 当前首要任务</div>
+      <div class="priority-title">${currentGoal.name}</div>
+      <div class="priority-desc">${currentGoal.priorityDesc}</div>
+    </div>`;
+
+  // ── 目标进度卡 ────────────────────────────────────────
+  html += `
+    <div class="goal-card">
+      <div class="goal-header-row">
+        <div>
+          <div class="goal-name">${currentGoal.name}</div>
+          <div class="goal-status">${currentGoal.status}</div>
+        </div>
+        <div class="goal-pct">${currentGoal.pct}%</div>
+      </div>
+      <div class="goal-bar-bg">
+        <div class="goal-bar-fill" style="width:${currentGoal.pct}%"></div>
+      </div>
+      <div class="goal-meta">
+        <div class="goal-meta-item">已有<strong style="color:var(--accent)">${currentGoal.current}</strong></div>
+        <div class="goal-meta-item">还差<strong>${currentGoal.remaining}</strong></div>
+        <div class="goal-meta-item">预计<strong>${currentGoal.eta}</strong></div>
+      </div>
+    </div>`;
+
+  // ── 行动步骤 ──────────────────────────────────────────
+  if (currentGoal.steps.length > 0) {
+    html += `
+      <div class="section-header" style="padding-bottom:4px">
+        <span class="section-title">具体行动步骤</span>
+      </div>
+      <div class="steps-list">`;
+    currentGoal.steps.forEach((step, i) => {
+      html += `
+        <div class="step-card">
+          <div class="step-num" style="background:var(--accent-dim);color:var(--accent)">${i + 1}</div>
+          <div class="step-text">${step.text}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── 其他目标（排队中/已完成）────────────────────────
+  if (otherGoals.length > 0) {
+    html += `
+      <div class="section-header" style="padding-bottom:4px;padding-top:24px">
+        <span class="section-title">其他目标</span>
+      </div>
+      <div class="other-goals">`;
+
+    otherGoals.forEach(g => {
+      const badge = g.done
+        ? `<span class="og-badge done">已达标 ✅</span>`
+        : currentGoal.done
+        ? `<span class="og-badge active">进行中</span>`
+        : `<span class="og-badge locked">🔒 待解锁</span>`;
+      const nameColor = g.done ? 'color:var(--text)' : !currentGoal.done ? 'color:var(--text-muted)' : 'color:var(--text)';
+      html += `
+        <div class="other-goal-card">
+          <div class="og-icon">${g.icon}</div>
+          <div class="og-info">
+            <div class="og-name" style="${nameColor}">${g.name}</div>
+            <div class="og-status">${g.done ? '完成 🎉' : g.status}</div>
+          </div>
+          ${badge}
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // 底部 padding
+  html += `<div style="height:8px"></div>`;
+
+  document.getElementById('advice-body').innerHTML = html;
+}
+
+render().then(() => {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = '';
+});
+</script>
+</body>
+</html>
