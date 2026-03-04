@@ -90,6 +90,13 @@
       color: var(--text-muted); margin-top: 20px; line-height: 1.6;
     }
   </style>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f0f13">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="财务健康">
+  <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
 <div class="wrap">
@@ -215,5 +222,12 @@ function showMsg(el, text, type) {
   el.className = 'msg ' + type;
 }
 </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js');
+      });
+    }
+  </script>
 </body>
 </html>
