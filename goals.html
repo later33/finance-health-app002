@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>财务健康 · 目标</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3"></script>
+  <link rel="stylesheet" href="base.css">
+  <style>
+    /* ── 顶部统计 ── */
+    .goals-summary {
+      margin: 0 24px 16px;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .gs-card {
+      background: var(--surface); border-radius: 16px;
+      padding: 16px; border: 1px solid var(--border);
+    }
+    .gs-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+    .gs-val   { font-size: 20px; font-weight: 800; }
+
+    /* ── 目标卡片 ── */
+    .goals-list { padding: 0 24px; display: flex; flex-direction: column; gap: 14px; }
+
+    .goal-card {
+      background: var(--surface); border-radius: 20px;
+      padding: 18px; border: 1px solid var(--border);
+      position: relative; overflow: hidden;
+      transition: transform 0.15s, border-color 0.2s;
+    }
+    .goal-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      border-radius: 20px 20px 0 0;
+    }
+    .goal-card.done   { border-color: rgba(92,240,176,0.4); }
+    .goal-card.done::before   { background: var(--ok); }
+    .goal-card.active { border-color: rgba(200,240,80,0.3); }
+    .goal-card.active::before { background: linear-gradient(90deg, var(--accent), var(--ok)); }
+    .goal-card.late   { border-color: rgba(255,107,107,0.3); }
+    .goal-card.late::before   { background: var(--warn); }
+
+    .gc-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+    .gc-emoji  { font-size: 28px; line-height: 1; }
+    .gc-info   { flex: 1; }
+    .gc-name   { font-size: 16px; font-weight: 700; color: var(--text); }
+    .gc-deadline { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .gc-badge  {
+      font-size: 11px; font-weight: 600; padding: 4px 10px;
+      border-radius: 20px; white-space: nowrap; align-self: flex-start;
+    }
+    .badge-done   { background: var(--ok-dim);   color: var(--ok);   }
+    .badge-active { background: var(--accent-dim); color: var(--accent); }
+    .badge-late   { background: var(--warn-dim);  color: var(--warn); }
+
+    .gc-amounts {
+      display: flex; justify-content: space-between;
+      align-items: baseline; margin-bottom: 10px;
+    }
+    .gc-current { font-size: 22px; font-weight: 800; color: var(--text); }
+    .gc-target  { font-size: 13px; color: var(--text-muted); }
+
+    .gc-bar-bg   { height: 10px; background: rgba(255,255,255,0.06); border-radius: 10px; margin-bottom: 10px; position: relative; overflow: hidden; }
+    .gc-bar-fill {
+      height: 10px; border-radius: 10px;
+      transition: width 1s cubic-bezier(0.22,1,0.36,1);
+      position: relative;
+    }
+    .gc-bar-fill.done   { background: var(--ok); }
+    .gc-bar-fill.active { background: linear-gradient(90deg, var(--accent), var(--ok)); }
+    .gc-bar-fill.late   { background: var(--warn); }
+    /* 闪光动画 */
+    .gc-bar-fill::after {
+      content: ''; position: absolute; top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer { to { left: 200%; } }
+
+    .gc-footer {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .gc-meta { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .gc-meta strong { color: var(--text); }
+    .gc-actions { display: flex; gap: 6px; }
+    .gc-edit-btn, .gc-del-btn {
+      height: 30px; padding: 0 12px; border-radius: 10px;
+      font-size: 12px; font-weight: 600; font-family: inherit;
+      cursor: pointer; border: none; transition: transform 0.12s, opacity 0.12s;
+    }
+    .gc-edit-btn { background: var(--accent-dim); color: var(--accent); }
+    .gc-del-btn  { background: var(--warn-dim);   color: var(--warn);   }
+    .gc-edit-btn:active, .gc-del-btn:active { transform: scale(0.93); opacity: 0.8; }
+
+    /* ── 空状态 ── */
+    .empty-goals {
+      text-align: center; padding: 48px 24px;
+      color: var(--text-muted); font-size: 13px; line-height: 1.8;
+    }
+    .empty-goals .ei { font-size: 48px; margin-bottom: 14px; }
+    .empty-goals p { max-width: 260px; margin: 0 auto; }
+
+    /* ── FAB ── */
+    .add-fab {
+      position: fixed; bottom: 96px; right: calc(50% - 375px/2 + 20px);
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--accent); color: #0f0f13;
+      border: none; font-size: 24px; font-weight: 700;
+      cursor: pointer; box-shadow: 0 4px 20px rgba(200,240,80,0.4);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+      z-index: 50;
+    }
+    .add-fab:active { transform: scale(0.9); box-shadow: 0 2px 10px rgba(200,240,80,0.3); }
+
+    /* ── 弹窗 ── */
+    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:flex-end;justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { width:375px;background:var(--surface2);border-radius:28px 28px 0 0;padding:0 24px 44px;transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.32,0.72,0,1);max-height:88vh;overflow-y:auto; }
+    .modal-overlay.open .modal { transform:translateY(0); }
+    .modal-handle { width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 18px; }
+    .modal-title  { font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px; }
+
+    /* emoji 选择 */
+    .emoji-row { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px; }
+    .emoji-opt {
+      width:44px;height:44px;border-radius:12px;background:var(--surface);
+      border:1.5px solid var(--border);display:flex;align-items:center;
+      justify-content:center;font-size:22px;cursor:pointer;transition:all 0.15s;
+    }
+    .emoji-opt.selected { border-color:var(--accent);background:var(--accent-dim); }
+    .emoji-opt:active { transform:scale(0.9); }
+
+    .field { margin-bottom:14px; }
+    .field label { display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px; }
+    .field input, .field select {
+      width:100%;height:50px;background:var(--surface);border:1.5px solid var(--border);
+      border-radius:14px;padding:0 16px;font-size:15px;font-family:inherit;
+      color:var(--text);outline:none;transition:border-color 0.15s;appearance:none;
+    }
+    .field input:focus, .field select:focus { border-color:var(--accent); }
+    .field input::placeholder { color:var(--text-muted); }
+    .amount-wrap { position:relative; }
+    .amount-prefix { position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-muted); }
+    .amount-wrap input { padding-left:28px; }
+
+    .save-btn {
+      width:100%;height:52px;border:none;border-radius:16px;
+      background:var(--accent);color:#0f0f13;
+      font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;
+      transition:transform 0.12s,opacity 0.12s;
+    }
+    .save-btn:active { transform:scale(0.97); }
+    .save-btn:disabled { opacity:0.5;cursor:not-allowed; }
+
+    /* ── 加载 ── */
+    .loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200;}
+    .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loading-screen p{font-size:13px;color:var(--text-muted);}
+  </style>
+</head>
+<body>
+<div class="loading-screen" id="loading"><div class="spin"></div><p>加载中…</p></div>
+
+<div class="phone" id="app" style="display:none">
+  <div class="status-bar">
+    <span class="status-time" id="clock">9:41</span>
+    <div class="status-icons"><svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg></div>
+  </div>
+
+  <div class="screen-content">
+    <div class="page-header">
+      <div class="page-title">财务目标</div>
+      <div class="page-sub">设定目标，量化你的财务进度</div>
+    </div>
+
+    <!-- 统计 -->
+    <div class="goals-summary" id="goals-summary" style="display:none">
+      <div class="gs-card">
+        <div class="gs-label">进行中目标</div>
+        <div class="gs-val" id="gs-active" style="color:var(--accent)">0</div>
+      </div>
+      <div class="gs-card">
+        <div class="gs-label">已完成目标</div>
+        <div class="gs-val" id="gs-done" style="color:var(--ok)">0</div>
+      </div>
+    </div>
+
+    <!-- 目标列表 -->
+    <div class="goals-list" id="goals-list"></div>
+  </div>
+
+  <!-- 添加按钮 -->
+  <button class="add-fab" id="open-modal">＋</button>
+
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="10" width="8" height="10" rx="2" fill="currentColor"/><rect x="12" y="2" width="8" height="18" rx="2" fill="currentColor" opacity="0.6"/></svg><span>总览</span></a>
+    <a href="assets.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="9" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="7" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/></svg><span>资产</span></a>
+    <a href="cashflow.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M4 7l4-4 4 4M18 15l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>收支</span></a>
+    <a href="diagnosis.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 6v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>诊断</span></a>
+    <a href="goals.html" class="nav-item active"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="4" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="1.5" fill="currentColor"/></svg><span>目标</span></a>
+  </nav>
+</div>
+
+<!-- 弹窗 -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">新建目标</div>
+
+    <div class="field"><label>图标</label>
+      <div class="emoji-row" id="emoji-row">
+        <div class="emoji-opt selected" data-emoji="🎯">🎯</div>
+        <div class="emoji-opt" data-emoji="🏠">🏠</div>
+        <div class="emoji-opt" data-emoji="🚗">🚗</div>
+        <div class="emoji-opt" data-emoji="✈️">✈️</div>
+        <div class="emoji-opt" data-emoji="💰">💰</div>
+        <div class="emoji-opt" data-emoji="📚">📚</div>
+        <div class="emoji-opt" data-emoji="💍">💍</div>
+        <div class="emoji-opt" data-emoji="👶">👶</div>
+        <div class="emoji-opt" data-emoji="🏦">🏦</div>
+        <div class="emoji-opt" data-emoji="💻">💻</div>
+      </div>
+    </div>
+
+    <div class="field"><label>目标名称</label>
+      <input type="text" id="input-name" placeholder="如：买房首付、应急储备金" maxlength="20">
+    </div>
+
+    <div class="field"><label>目标金额（元）</label>
+      <div class="amount-wrap">
+        <span class="amount-prefix">¥</span>
+        <input type="number" id="input-target" placeholder="0" min="0" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="field"><label>截止日期（可选）</label>
+      <input type="month" id="input-deadline" style="padding:0 16px;">
+    </div>
+
+    <div class="field"><label>关联资产类型</label>
+      <select id="input-asset-type">
+        <option value="all">全部资产（净资产）</option>
+        <option value="cash">现金 & 存款</option>
+        <option value="investment">投资资产</option>
+        <option value="fixed">固定资产</option>
+      </select>
+    </div>
+
+    <button class="save-btn" id="save-btn">创建目标</button>
+  </div>
+</div>
+
+<script src="supabase.js"></script>
+<script>
+let selectedEmoji = '🎯';
+let editId = null;
+
+// 时钟
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+updateClock(); setInterval(updateClock, 10000);
+
+// ── Supabase 目标 CRUD ───────────────────────────────────
+async function loadGoals() {
+  const { data, error } = await sb.from('goals')
+    .select('*').order('created_at');
+  if (error) { console.error(error); return []; }
+  return data;
+}
+
+async function saveGoal(goal) {
+  const user = await getUser();
+  if (editId) {
+    const { error } = await sb.from('goals').update({
+      emoji: goal.emoji, name: goal.name,
+      target_amount: goal.target_amount,
+      deadline: goal.deadline || null,
+      asset_type: goal.asset_type,
+    }).eq('id', editId);
+    if (error) console.error(error);
+  } else {
+    const { error } = await sb.from('goals').insert({
+      user_id: user.id,
+      emoji: goal.emoji, name: goal.name,
+      target_amount: goal.target_amount,
+      deadline: goal.deadline || null,
+      asset_type: goal.asset_type,
+    });
+    if (error) console.error(error);
+  }
+}
+
+async function deleteGoal(id) {
+  const { error } = await sb.from('goals').delete().eq('id', id);
+  if (error) console.error(error);
+}
+
+// ── 计算当前金额 ─────────────────────────────────────────
+function getCurrentAmount(assets, assetType) {
+  const stats = calcStats(assets);
+  if (assetType === 'all')        return stats.netWorth;
+  if (assetType === 'cash')       return stats.byType.cash;
+  if (assetType === 'investment') return stats.byType.investment;
+  if (assetType === 'fixed')      return stats.byType.fixed;
+  return 0;
+}
+
+// ── 截止日期显示 ─────────────────────────────────────────
+function fmtDeadline(deadline) {
+  if (!deadline) return '';
+  const now  = new Date();
+  const dead = new Date(deadline + '-01');
+  const diffMs = dead - now;
+  const diffDays = Math.ceil(diffMs / (1000*60*60*24));
+  const [y, m] = deadline.split('-');
+  const label = `${y}年${parseInt(m)}月`;
+  if (diffDays < 0)   return `${label}（已逾期）`;
+  if (diffDays < 30)  return `${label}（还剩 ${diffDays} 天）`;
+  const months = Math.ceil(diffDays / 30);
+  return `${label}（还剩约 ${months} 个月）`;
+}
+
+function isLate(deadline) {
+  if (!deadline) return false;
+  return new Date(deadline + '-01') < new Date();
+}
+
+// ── 主渲染 ───────────────────────────────────────────────
+async function render() {
+  const user = await requireAuth();
+  if (!user) return;
+
+  const [goals, assets] = await Promise.all([loadGoals(), dbLoadAssets()]);
+
+  const doneGoals   = goals.filter(g => getCurrentAmount(assets, g.asset_type) >= g.target_amount);
+  const activeGoals = goals.filter(g => getCurrentAmount(assets, g.asset_type) < g.target_amount);
+
+  // 统计
+  if (goals.length > 0) {
+    document.getElementById('goals-summary').style.display = '';
+    document.getElementById('gs-active').textContent = activeGoals.length;
+    document.getElementById('gs-done').textContent   = doneGoals.length;
+  }
+
+  const listEl = document.getElementById('goals-list');
+  listEl.innerHTML = '';
+
+  if (goals.length === 0) {
+    listEl.innerHTML = `
+      <div class="empty-goals">
+        <div class="ei">🎯</div>
+        <p>还没有财务目标，点击右下角 ＋ 创建你的第一个目标</p>
+      </div>`;
+  } else {
+    goals.forEach((goal, idx) => {
+      const current = getCurrentAmount(assets, goal.asset_type);
+      const pct     = Math.min(100, (current / goal.target_amount) * 100);
+      const remain  = goal.target_amount - current;
+      const done    = current >= goal.target_amount;
+      const late    = !done && isLate(goal.deadline);
+      const state   = done ? 'done' : late ? 'late' : 'active';
+
+      const assetLabels = {
+        all:'净资产', cash:'现金存款', investment:'投资资产', fixed:'固定资产'
+      };
+
+      // 预计完成时间（根据近3月平均储蓄率估算）
+      let etaText = '';
+      if (!done && remain > 0) {
+        etaText = `还差 ${fmt(remain)}`;
+        if (goal.deadline) etaText += `，${fmtDeadline(goal.deadline)}`;
+      }
+
+      const card = document.createElement('div');
+      card.className = `goal-card ${state}`;
+      card.style.animationDelay = `${idx * 0.06}s`;
+      card.innerHTML = `
+        <div class="gc-header">
+          <span class="gc-emoji">${goal.emoji}</span>
+          <div class="gc-info">
+            <div class="gc-name">${goal.name}</div>
+            <div class="gc-deadline">${assetLabels[goal.asset_type] || '净资产'} ${goal.deadline ? '· ' + fmtDeadline(goal.deadline) : ''}</div>
+          </div>
+          <span class="gc-badge ${done?'badge-done':late?'badge-late':'badge-active'}">
+            ${done ? '✅ 已达成' : late ? '⚠️ 已逾期' : `${pct.toFixed(0)}%`}
+          </span>
+        </div>
+        <div class="gc-amounts">
+          <span class="gc-current">${fmt(current)}</span>
+          <span class="gc-target">目标 ${fmt(goal.target_amount)}</span>
+        </div>
+        <div class="gc-bar-bg">
+          <div class="gc-bar-fill ${state}" style="width:${pct}%"></div>
+        </div>
+        <div class="gc-footer">
+          <div class="gc-meta">
+            ${done
+              ? `<strong>🎉 恭喜达成目标！</strong>`
+              : `<strong>${etaText}</strong>`}
+          </div>
+          <div class="gc-actions">
+            <button class="gc-edit-btn" data-id="${goal.id}">编辑</button>
+            <button class="gc-del-btn"  data-id="${goal.id}">删除</button>
+          </div>
+        </div>`;
+      listEl.appendChild(card);
+    });
+
+    listEl.querySelectorAll('.gc-edit-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const goal = goals.find(g => g.id === btn.dataset.id);
+        openModal(goal);
+      });
+    });
+    listEl.querySelectorAll('.gc-del-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('确认删除这个目标？')) return;
+        await deleteGoal(btn.dataset.id);
+        await render();
+      });
+    });
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+
+// ── 弹窗 ─────────────────────────────────────────────────
+function openModal(goal = null) {
+  editId = goal ? goal.id : null;
+  document.getElementById('modal-title').textContent = goal ? '编辑目标' : '新建目标';
+  document.getElementById('input-name').value       = goal?.name || '';
+  document.getElementById('input-target').value     = goal?.target_amount || '';
+  document.getElementById('input-deadline').value   = goal?.deadline || '';
+  document.getElementById('input-asset-type').value = goal?.asset_type || 'all';
+  document.getElementById('save-btn').textContent   = goal ? '保存修改' : '创建目标';
+
+  // emoji
+  selectedEmoji = goal?.emoji || '🎯';
+  document.querySelectorAll('.emoji-opt').forEach(el => {
+    el.classList.toggle('selected', el.dataset.emoji === selectedEmoji);
+  });
+
+  document.getElementById('modal').classList.add('open');
+}
+
+document.getElementById('open-modal').addEventListener('click', () => openModal());
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open');
+});
+
+document.querySelectorAll('.emoji-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    selectedEmoji = el.dataset.emoji;
+    document.querySelectorAll('.emoji-opt').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+  });
+});
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const name   = document.getElementById('input-name').value.trim();
+  const target = parseFloat(document.getElementById('input-target').value);
+  const deadline   = document.getElementById('input-deadline').value;
+  const assetType  = document.getElementById('input-asset-type').value;
+
+  if (!name)              { alert('请填写目标名称'); return; }
+  if (!target || target <= 0) { alert('请填写目标金额'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '保存中…';
+
+  await saveGoal({ emoji: selectedEmoji, name, target_amount: target, deadline, asset_type: assetType });
+  btn.disabled = false;
+  document.getElementById('modal').classList.remove('open');
+  await render();
+});
+
+render();
+</script>
+</body>
+</html>
