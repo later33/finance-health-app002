@@ -85,13 +85,17 @@
     .gc-meta strong { color: var(--text); }
     .gc-actions { display: flex; gap: 6px; }
     .gc-edit-btn, .gc-del-btn {
-      height: 30px; padding: 0 12px; border-radius: 10px;
-      font-size: 12px; font-weight: 600; font-family: inherit;
-      cursor: pointer; border: none; transition: transform 0.12s, opacity 0.12s;
+      width: 32px; height: 32px; border-radius: 50%;
+      font-size: 15px; font-family: inherit;
+      cursor: pointer; border: none;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.12s, opacity 0.12s;
     }
-    .gc-edit-btn { background: var(--accent-dim); color: var(--accent); }
-    .gc-del-btn  { background: var(--warn-dim);   color: var(--warn);   }
-    .gc-edit-btn:active, .gc-del-btn:active { transform: scale(0.93); opacity: 0.8; }
+    .gc-edit-btn { background: var(--surface2); color: var(--text-muted); }
+    .gc-del-btn  { background: var(--surface2); color: var(--text-muted); }
+    .gc-edit-btn:hover { color: var(--accent); }
+    .gc-del-btn:hover  { color: var(--warn); }
+    .gc-edit-btn:active, .gc-del-btn:active { transform: scale(0.88); opacity: 0.8; }
 
     /* ── 空状态 ── */
     .empty-goals {
@@ -420,8 +424,8 @@ async function render() {
               : `<strong>${etaText}</strong>`}
           </div>
           <div class="gc-actions">
-            <button class="gc-edit-btn" data-id="${goal.id}">编辑</button>
-            <button class="gc-del-btn"  data-id="${goal.id}">删除</button>
+            <button class="gc-edit-btn" data-id="${goal.id}" title="编辑">✏️</button>
+            <button class="gc-del-btn"  data-id="${goal.id}" title="删除">🗑️</button>
           </div>
         </div>`;
       listEl.appendChild(card);

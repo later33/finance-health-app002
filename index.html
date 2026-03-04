@@ -44,10 +44,10 @@
     .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 24px 20px; }
     .stat-card {
       background:var(--surface); border-radius:16px;
-      padding:14px 16px; border:1px solid var(--border);
+      padding:16px; border:1px solid var(--border);
     }
-    .stat-label { font-size:11px; color:var(--text-muted); margin-bottom:4px; }
-    .stat-val   { font-size:18px; font-weight:700; }
+    .stat-label { font-size:11px; color:var(--text-muted); margin-bottom:6px; letter-spacing:0.02em; }
+    .stat-val   { font-size:20px; font-weight:700; color:var(--text); }
 
     .chart-card {
       margin:0 24px 20px; background:var(--surface);
@@ -146,13 +146,13 @@
         <div class="score-label">财务健康分</div>
       </div>
       <div style="flex:1;display:flex;flex-direction:column;gap:10px">
-        <div class="stat-card">
+        <div class="stat-card" style="background:#18181f;border:1px solid rgba(255,255,255,0.08)">
           <div class="stat-label">负债率</div>
-          <div class="stat-val" id="debt-ratio">—</div>
+          <div class="stat-val" id="debt-ratio" style="color:var(--text)">—</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="background:#18181f;border:1px solid rgba(255,255,255,0.08)">
           <div class="stat-label">资产项目</div>
-          <div class="stat-val" id="asset-count">—</div>
+          <div class="stat-val" id="asset-count" style="color:var(--text)">—</div>
         </div>
       </div>
     </div>
@@ -257,7 +257,9 @@ async function render() {
     (circumference * (1 - score / 100)).toFixed(1);
 
   // 快速统计
-  document.getElementById('debt-ratio').textContent = debtRatio + '%';
+  const drEl = document.getElementById('debt-ratio');
+  drEl.textContent = debtRatio + '%';
+  drEl.style.color = parseFloat(debtRatio) > 50 ? 'var(--warn)' : parseFloat(debtRatio) > 30 ? 'var(--mid)' : 'var(--ok)';
   document.getElementById('asset-count').textContent = assets.length + ' 项';
 
   // 饼图
