@@ -79,10 +79,12 @@
     .cta-wrap { padding: 20px 24px 0; }
     .cta-btn {
       display: flex; align-items: center; justify-content: center;
-      height: 52px; border-radius: 16px;
-      background: var(--accent); color: #0f0f13;
-      font-size: 15px; font-weight: 700; text-decoration: none;
+      height: 52px; border-radius: 16px; border: none; font-family: inherit;
+      background: var(--accent); color: #0f0f13; width: 100%;
+      font-size: 15px; font-weight: 700; text-decoration: none; cursor: pointer;
+      transition: transform 0.12s, opacity 0.12s;
     }
+    .cta-btn:active { transform: scale(0.98); opacity: 0.9; }
 
     .empty-diag { margin: 48px 24px; text-align: center; color: var(--text-muted); }
     .empty-diag .ei { font-size: 48px; margin-bottom: 16px; }
@@ -93,6 +95,54 @@
     .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
     @keyframes spin{to{transform:rotate(360deg);}}
     .loading-screen p{font-size:13px;color:var(--text-muted);}
+
+    /* ── 行动建议弹窗 ── */
+    .advice-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;align-items:flex-end;justify-content:center; }
+    .advice-overlay.open { display:flex; }
+    .advice-sheet {
+      width:375px;background:var(--surface2);border-radius:28px 28px 0 0;
+      padding:0 0 40px;transform:translateY(100%);
+      transition:transform 0.38s cubic-bezier(0.32,0.72,0,1);
+      max-height:88vh;overflow-y:auto;
+    }
+    .advice-overlay.open .advice-sheet { transform:translateY(0); }
+    .advice-handle { width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0; }
+    .advice-header { padding:16px 24px 12px;border-bottom:1px solid var(--border); }
+    .advice-header-title { font-size:18px;font-weight:700;color:var(--text); }
+    .advice-header-sub { font-size:12px;color:var(--text-muted);margin-top:3px; }
+    .advice-loading { padding:40px 24px;text-align:center; }
+    .advice-loading .spin2 {
+      width:32px;height:32px;border:3px solid var(--border);
+      border-top-color:var(--accent);border-radius:50%;
+      animation:spin 0.8s linear infinite;margin:0 auto 12px;
+    }
+    .advice-loading p { font-size:13px;color:var(--text-muted); }
+    .advice-items { padding:16px 24px;display:flex;flex-direction:column;gap:12px; }
+    .advice-item {
+      background:var(--surface);border-radius:16px;padding:16px;
+      border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;
+      animation: fadeUp 0.35s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    .advice-item:nth-child(1){animation-delay:0.05s}
+    .advice-item:nth-child(2){animation-delay:0.1s}
+    .advice-item:nth-child(3){animation-delay:0.15s}
+    .advice-item:nth-child(4){animation-delay:0.2s}
+    .advice-item:nth-child(5){animation-delay:0.25s}
+    .adv-icon {
+      width:38px;height:38px;border-radius:12px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;font-size:18px;
+    }
+    .adv-body { flex:1; }
+    .adv-title { font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px; }
+    .adv-desc  { font-size:12px;color:var(--text-muted);line-height:1.6; }
+    .adv-tag {
+      display:inline-block;font-size:10px;font-weight:600;
+      padding:2px 8px;border-radius:20px;margin-top:6px;
+    }
+    .tag-urgent { background:var(--warn-dim);color:var(--warn); }
+    .tag-good   { background:var(--ok-dim);  color:var(--ok);   }
+    .tag-tip    { background:var(--mid-dim); color:var(--mid);  }
   </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -144,6 +194,7 @@
   </nav>
 </div>
 
+<script src="js/finance.js"></script>
 <script src="supabase.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────
@@ -456,7 +507,7 @@ async function render(){
 
     <!-- CTA -->
     <div class="cta-wrap">
-      <a href="advice.html" class="cta-btn">查看行动建议 →</a>
+      <button class="cta-btn" id="advice-btn">查看行动建议 →</button>
     </div>`;
 
   document.getElementById('diag-body').innerHTML = html;
@@ -476,5 +527,195 @@ render().then(() => {
       });
     }
   </script>
+
+<!-- 行动建议弹窗 -->
+<div class="advice-overlay" id="advice-overlay">
+  <div class="advice-sheet">
+    <div class="advice-handle"></div>
+    <div class="advice-header">
+      <div class="advice-header-title">🎯 专属行动建议</div>
+      <div class="advice-header-sub" id="advice-date">根据你的财务状况生成</div>
+    </div>
+    <div id="advice-content">
+      <div class="advice-loading">
+        <div class="spin2"></div>
+        <p>分析你的财务数据中…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 行动建议生成逻辑 ─────────────────────────────────────
+function generateAdviceItems(diagData) {
+  const { stats, cfData, dims, score } = diagData;
+  const items = [];
+
+  // 1. 负债率建议
+  const dr = parseFloat(stats.debtRatio);
+  if (dr > 50) {
+    items.push({
+      icon: '💳', iconBg: 'rgba(255,107,107,0.12)',
+      title: '优先偿还高息负债',
+      desc: `你的负债率已达 ${dr}%，建议每月收入的 20% 用于还款，优先清偿利率最高的债务。`,
+      tag: '紧急', tagClass: 'tag-urgent'
+    });
+  } else if (dr > 30) {
+    items.push({
+      icon: '💳', iconBg: 'rgba(240,184,76,0.12)',
+      title: '控制负债增长',
+      desc: `负债率 ${dr}%，处于警戒线附近。近期避免新增贷款，逐步将负债率降至 30% 以下。`,
+      tag: '建议', tagClass: 'tag-tip'
+    });
+  }
+
+  // 2. 储蓄率建议
+  if (cfData && cfData.income > 0) {
+    const sr = parseInt(cfData.savRate);
+    if (sr < 10) {
+      items.push({
+        icon: '💰', iconBg: 'rgba(255,107,107,0.12)',
+        title: '建立强制储蓄习惯',
+        desc: `本月储蓄率仅 ${sr}%，建议发薪日立即转出收入的 10% 到独立账户，先存钱后消费。`,
+        tag: '紧急', tagClass: 'tag-urgent'
+      });
+    } else if (sr < 20) {
+      items.push({
+        icon: '📈', iconBg: 'rgba(200,240,80,0.12)',
+        title: '提升储蓄率到 20%',
+        desc: `储蓄率 ${sr}%，还有提升空间。检查餐饮、购物支出，每月多存 ${Math.round(cfData.income * 0.05 / 100) * 100} 元。`,
+        tag: '建议', tagClass: 'tag-tip'
+      });
+    } else {
+      items.push({
+        icon: '🎉', iconBg: 'rgba(92,240,176,0.12)',
+        title: '储蓄率良好，考虑投资',
+        desc: `储蓄率 ${sr}%，表现优秀！闲置资金可考虑低风险理财或指数基金，让钱生钱。`,
+        tag: '做得好', tagClass: 'tag-good'
+      });
+    }
+  } else {
+    items.push({
+      icon: '📝', iconBg: 'rgba(200,240,80,0.12)',
+      title: '开始记录每月收支',
+      desc: '在「收支」页面记录你的收入和支出，系统将自动计算储蓄率并给出精准建议。',
+      tag: '行动', tagClass: 'tag-tip'
+    });
+  }
+
+  // 3. 资产配置建议
+  const { byType, totalAssets } = stats;
+  const cashRatio = totalAssets > 0 ? byType.cash / totalAssets : 0;
+  const investRatio = totalAssets > 0 ? byType.investment / totalAssets : 0;
+
+  if (cashRatio > 0.8 && totalAssets > 50000) {
+    items.push({
+      icon: '📊', iconBg: 'rgba(96,208,240,0.12)',
+      title: '分散资产，避免现金贬值',
+      desc: `现金占比 ${(cashRatio*100).toFixed(0)}%，建议将 30-40% 配置到稳健投资（如货币基金、债券），对抗通胀。`,
+      tag: '建议', tagClass: 'tag-tip'
+    });
+  } else if (investRatio === 0 && totalAssets > 20000) {
+    items.push({
+      icon: '🌱', iconBg: 'rgba(92,240,176,0.12)',
+      title: '开始小额投资',
+      desc: '你目前没有投资资产，可以从每月定投 500 元指数基金开始，长期复利效果显著。',
+      tag: '建议', tagClass: 'tag-tip'
+    });
+  }
+
+  // 4. 应急基金建议
+  const monthlyExpense = cfData?.expense || 0;
+  const emergencyTarget = monthlyExpense * 6;
+  if (monthlyExpense > 0 && byType.cash < emergencyTarget) {
+    const needed = emergencyTarget - byType.cash;
+    items.push({
+      icon: '🛡️', iconBg: 'rgba(200,240,80,0.12)',
+      title: '建立应急储备金',
+      desc: `建议保留 6 个月支出（约 ${fmt(emergencyTarget)}）作为应急资金。你还需要再存 ${fmt(needed)}。`,
+      tag: '重要', tagClass: 'tag-tip'
+    });
+  }
+
+  // 5. 综合评分建议
+  if (score >= 75) {
+    items.push({
+      icon: '🏆', iconBg: 'rgba(92,240,176,0.12)',
+      title: '财务状况良好，继续保持',
+      desc: '你的综合财务健康分不错！下一步可以设定中长期目标，比如提前退休或购房计划。',
+      tag: '做得好', tagClass: 'tag-good'
+    });
+  }
+
+  // 至少保留 3 条
+  if (items.length === 0) {
+    items.push({
+      icon: '📌', iconBg: 'rgba(200,240,80,0.12)',
+      title: '继续完善财务数据',
+      desc: '添加更多资产和收支记录，系统将生成更精准的个性化建议。',
+      tag: '提示', tagClass: 'tag-tip'
+    });
+  }
+
+  return items;
+}
+
+function renderAdviceItems(items) {
+  const html = items.map(item => `
+    <div class="advice-item">
+      <div class="adv-icon" style="background:${item.iconBg}">${item.icon}</div>
+      <div class="adv-body">
+        <div class="adv-title">${item.title}</div>
+        <div class="adv-desc">${item.desc}</div>
+        <span class="adv-tag ${item.tagClass}">${item.tag}</span>
+      </div>
+    </div>`).join('');
+  document.getElementById('advice-content').innerHTML =
+    `<div class="advice-items">${html}</div>`;
+}
+
+// ── 按钮点击 ─────────────────────────────────────────────
+document.getElementById('advice-btn').addEventListener('click', async () => {
+  document.getElementById('advice-overlay').classList.add('open');
+  const now = new Date();
+  document.getElementById('advice-date').textContent =
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 · 基于你的真实数据`;
+
+  // 加载数据
+  document.getElementById('advice-content').innerHTML = `
+    <div class="advice-loading">
+      <div class="spin2"></div>
+      <p>分析你的财务数据中…</p>
+    </div>`;
+
+  try {
+    const [assets, cfRows] = await Promise.all([
+      dbLoadAssets(),
+      dbLoadCashflow()
+    ]);
+    const stats  = calcStats(assets);
+    const now2   = new Date();
+    const month  = `${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,'0')}`;
+    const cfData = calcCashflow(cfRows, month);
+    // 复用诊断分数
+    const dr = parseFloat(stats.debtRatio);
+    const debtScore = dr===0?100:dr<=30?80:dr<=50?55:30;
+    const typeCount = ['cash','investment','fixed'].filter(t=>stats.byType[t]>0).length;
+    const score = Math.round(debtScore*0.5 + typeCount*33*0.3);
+
+    const items = generateAdviceItems({ stats, cfData, dims: null, score });
+    renderAdviceItems(items);
+  } catch(e) {
+    document.getElementById('advice-content').innerHTML =
+      '<div style="padding:24px;text-align:center;color:var(--text-muted)">加载失败，请重试</div>';
+  }
+});
+
+document.getElementById('advice-overlay').addEventListener('click', e => {
+  if (e.target.id === 'advice-overlay')
+    document.getElementById('advice-overlay').classList.remove('open');
+});
+</script>
+
 </body>
 </html>
