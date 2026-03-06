@@ -74,10 +74,9 @@ body {
   transition: color 0.2s, transform 0.15s;
   position: relative;
 }
-.nav-item svg { transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
-.nav-item:active svg { transform: scale(0.85); }
+.nav-item svg { transition: opacity 0.15s; }
+.nav-item:active { opacity: 0.7; }
 .nav-item.active { color: var(--accent); }
-.nav-item.active svg { transform: scale(1.1); }
 
 /* active dot */
 .nav-item.active::after {
@@ -93,11 +92,9 @@ body {
 .page-header { padding: 20px 24px 16px; }
 .page-title {
   font-size: 22px; font-weight: 700; color: var(--text);
-  animation: slideDown 0.4s cubic-bezier(0.22,1,0.36,1) both;
 }
 .page-sub {
   font-size: 13px; color: var(--text-muted); margin-top: 4px;
-  animation: slideDown 0.4s 0.05s cubic-bezier(0.22,1,0.36,1) both;
 }
 
 .section-header {
@@ -113,7 +110,7 @@ body {
 
 /* 整个页面内容淡入上移 */
 @keyframes pageIn {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes slideDown {
@@ -134,18 +131,14 @@ body {
 
 /* 给 screen-content 整体进场 */
 .screen-content {
-  animation: pageIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+  animation: pageIn 0.25s cubic-bezier(0.22,1,0.36,1) both;
 }
 
 /* 卡片逐个延迟入场 */
 .anim-card {
   animation: pageIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
 }
-.anim-card:nth-child(1) { animation-delay: 0.05s; }
-.anim-card:nth-child(2) { animation-delay: 0.10s; }
-.anim-card:nth-child(3) { animation-delay: 0.15s; }
-.anim-card:nth-child(4) { animation-delay: 0.20s; }
-.anim-card:nth-child(5) { animation-delay: 0.25s; }
+/* 卡片不做延迟进场 */
 
 /* ============================================================
    通用交互反馈
@@ -191,7 +184,7 @@ button:active, .add-fab:active, .save-btn:active,
 
 /* 加载完成后内容淡入 */
 .phone[style*="display:none"] { opacity: 0; }
-#app { animation: pageIn 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+#app { animation: pageIn 0.25s cubic-bezier(0.22,1,0.36,1) both; }
 
 /* ============================================================
    모달 · 弹窗动画
