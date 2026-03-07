@@ -178,6 +178,31 @@
   </nav>
 </div>
 
+<!-- 编辑资产弹窗 -->
+<div class="edit-overlay" id="edit-overlay">
+  <div class="edit-sheet">
+    <div class="edit-handle"></div>
+    <div style="display:flex;justify-content:flex-end;padding:0 0 4px">
+      <button id="edit-close-btn" style="background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1">×</button>
+    </div>
+    <div class="edit-asset-info">
+      <div class="edit-asset-icon" id="edit-icon"></div>
+      <div>
+        <div class="edit-asset-name" id="edit-name"></div>
+        <div class="edit-asset-type" id="edit-type"></div>
+      </div>
+    </div>
+    <div class="edit-label">当前金额（元）</div>
+    <div class="edit-amount-wrap">
+      <span class="edit-prefix">¥</span>
+      <input class="edit-amount-input" type="number" id="edit-amount" inputmode="decimal" placeholder="0">
+    </div>
+    <div class="edit-label">快速调整</div>
+    <div class="edit-quick-row" id="edit-quick-row"></div>
+    <button class="edit-save-btn" id="edit-save-btn">保存更新</button>
+  </div>
+</div>
+
 <!-- 弹窗 -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
@@ -375,31 +400,6 @@ document.getElementById('edit-save-btn').addEventListener('click', async () => {
       });
     }
   </script>
-
-<!-- 编辑资产弹窗 -->
-<div class="edit-overlay" id="edit-overlay">
-  <div class="edit-sheet">
-    <div class="edit-handle"></div>
-    <div style="display:flex;justify-content:flex-end;padding:0 0 4px">
-      <button id="edit-close-btn" style="background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1">×</button>
-    </div>
-    <div class="edit-asset-info">
-      <div class="edit-asset-icon" id="edit-icon"></div>
-      <div>
-        <div class="edit-asset-name" id="edit-name"></div>
-        <div class="edit-asset-type" id="edit-type"></div>
-      </div>
-    </div>
-    <div class="edit-label">当前金额（元）</div>
-    <div class="edit-amount-wrap">
-      <span class="edit-prefix">¥</span>
-      <input class="edit-amount-input" type="number" id="edit-amount" inputmode="decimal" placeholder="0">
-    </div>
-    <div class="edit-label">快速调整</div>
-    <div class="edit-quick-row" id="edit-quick-row"></div>
-    <button class="edit-save-btn" id="edit-save-btn">保存更新</button>
-  </div>
-</div>
 
 </body>
 </html>
