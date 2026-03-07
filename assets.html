@@ -20,7 +20,10 @@
       padding:14px 14px;margin-bottom:8px;
       border:1px solid var(--border);
       display:flex;align-items:center;gap:12px;
+      cursor:pointer;transition:border-color 0.15s,transform 0.12s;
     }
+    .asset-card:active { transform:scale(0.98); }
+    .asset-card:hover  { border-color:rgba(200,240,80,0.3); }
     .asset-icon {
       width:42px;height:42px;border-radius:14px;
       display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;
@@ -33,9 +36,10 @@
       width:28px;height:28px;border-radius:50%;background:var(--warn-dim);
       border:none;color:var(--warn);font-size:12px;cursor:pointer;
       display:flex;align-items:center;justify-content:center;
-      opacity:0;transition:opacity 0.15s;
+      opacity:0;transition:opacity 0.15s;flex-shrink:0;
     }
     .asset-card:hover .del-btn { opacity:1; }
+    @media (hover:none) { .del-btn { opacity:1; } }
 
     /* 弹窗 */
     .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:flex-end;justify-content:center; }
@@ -86,6 +90,40 @@
     .spin { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .loading-screen p { font-size:13px;color:var(--text-muted); }
+
+    /* 编辑弹窗 */
+    .edit-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:flex-end;justify-content:center; }
+    .edit-overlay.open { display:flex; }
+    .edit-sheet { width:375px;background:var(--surface2);border-radius:28px 28px 0 0;padding:0 24px 44px;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1); }
+    .edit-overlay.open .edit-sheet { transform:translateY(0); }
+    .edit-handle { width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 16px; }
+    .edit-asset-info { display:flex;align-items:center;gap:12px;padding:4px 0 18px;border-bottom:1px solid var(--border);margin-bottom:18px; }
+    .edit-asset-icon { width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px; }
+    .edit-asset-name { font-size:16px;font-weight:700;color:var(--text); }
+    .edit-asset-type { font-size:11px;color:var(--text-muted);margin-top:2px; }
+    .edit-label { font-size:12px;color:var(--text-muted);margin-bottom:6px; }
+    .edit-amount-wrap { position:relative;margin-bottom:16px; }
+    .edit-prefix { position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:18px; }
+    .edit-amount-input {
+      width:100%;height:58px;background:var(--surface);border:2px solid var(--accent);
+      border-radius:16px;padding:0 16px 0 30px;font-size:22px;font-weight:800;
+      font-family:inherit;color:var(--text);outline:none;
+    }
+    .edit-quick-row { display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap; }
+    .edit-quick-btn {
+      height:32px;padding:0 12px;border-radius:10px;
+      background:var(--surface);border:1px solid var(--border);
+      color:var(--text-muted);font-size:12px;font-family:inherit;cursor:pointer;
+      transition:all 0.15s;
+    }
+    .edit-quick-btn:active { background:var(--accent-dim);color:var(--accent);border-color:var(--accent); }
+    .edit-save-btn {
+      width:100%;height:52px;border:none;border-radius:16px;
+      background:var(--accent);color:#0f0f13;font-size:16px;font-weight:700;
+      font-family:inherit;cursor:pointer;transition:transform 0.12s,opacity 0.12s;
+    }
+    .edit-save-btn:active { transform:scale(0.97); }
+    .edit-save-btn:disabled { opacity:0.5;cursor:not-allowed; }
   </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -163,6 +201,7 @@
   </div>
 </div>
 
+<script src="js/finance.js"></script>
 <script src="supabase.js"></script>
 <script>
 let selectedType = 'cash';
@@ -241,6 +280,7 @@ async function render() {
     items.forEach(a => {
       const card = document.createElement('div');
       card.className = 'asset-card';
+      card.dataset.id = a.id;
       card.innerHTML = `
         <div class="asset-icon" style="background:${cfg.iconBg}">${a.icon}</div>
         <div class="asset-info">
@@ -264,12 +304,66 @@ async function render() {
     });
   });
 
+  // 点击卡片打开编辑弹窗
+  listEl.querySelectorAll('.asset-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id     = card.dataset.id;
+      const asset  = assets.find(a => a.id === id);
+      if (!asset) return;
+      const cfg    = TYPE_CONFIG[asset.type];
+      document.getElementById('edit-icon').textContent    = asset.icon;
+      document.getElementById('edit-icon').style.background = cfg.iconBg;
+      document.getElementById('edit-name').textContent   = asset.name;
+      document.getElementById('edit-type').textContent   = cfg.label;
+      document.getElementById('edit-amount').value       = asset.amount;
+
+      // 快速调整按钮（±）
+      const quickRow = document.getElementById('edit-quick-row');
+      quickRow.innerHTML = '';
+      const quickVals = [-10000, -5000, -1000, +1000, +5000, +10000];
+      quickVals.forEach(v => {
+        const btn = document.createElement('button');
+        btn.className = 'edit-quick-btn';
+        btn.textContent = (v > 0 ? '+' : '') + (v/10000).toFixed(1) + '万';
+        btn.addEventListener('click', () => {
+          const cur = parseFloat(document.getElementById('edit-amount').value) || 0;
+          document.getElementById('edit-amount').value = Math.max(0, cur + v);
+        });
+        quickRow.appendChild(btn);
+      });
+
+      document.getElementById('edit-overlay').dataset.id = id;
+      document.getElementById('edit-overlay').classList.add('open');
+      setTimeout(() => document.getElementById('edit-amount').select(), 350);
+    });
+  });
+
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = '';
 }
 
 renderIconGrid('cash');
 render();
+
+// 编辑弹窗：关闭
+document.getElementById('edit-overlay').addEventListener('click', e => {
+  if (e.target.id === 'edit-overlay')
+    document.getElementById('edit-overlay').classList.remove('open');
+});
+
+// 编辑弹窗：保存
+document.getElementById('edit-save-btn').addEventListener('click', async () => {
+  const id     = document.getElementById('edit-overlay').dataset.id;
+  const amount = parseFloat(document.getElementById('edit-amount').value);
+  if (isNaN(amount) || amount < 0) { alert('请输入正确金额'); return; }
+  const btn = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  const { error } = await sb.from('assets').update({ amount }).eq('id', id);
+  if (!error) await dbSaveSnapshot();
+  btn.disabled = false; btn.textContent = '保存更新';
+  document.getElementById('edit-overlay').classList.remove('open');
+  await render();
+});
 </script>
   <script>
     if ('serviceWorker' in navigator) {
@@ -278,5 +372,28 @@ render();
       });
     }
   </script>
+
+<!-- 编辑资产弹窗 -->
+<div class="edit-overlay" id="edit-overlay">
+  <div class="edit-sheet">
+    <div class="edit-handle"></div>
+    <div class="edit-asset-info">
+      <div class="edit-asset-icon" id="edit-icon"></div>
+      <div>
+        <div class="edit-asset-name" id="edit-name"></div>
+        <div class="edit-asset-type" id="edit-type"></div>
+      </div>
+    </div>
+    <div class="edit-label">当前金额（元）</div>
+    <div class="edit-amount-wrap">
+      <span class="edit-prefix">¥</span>
+      <input class="edit-amount-input" type="number" id="edit-amount" inputmode="decimal" placeholder="0">
+    </div>
+    <div class="edit-label">快速调整</div>
+    <div class="edit-quick-row" id="edit-quick-row"></div>
+    <button class="edit-save-btn" id="edit-save-btn">保存更新</button>
+  </div>
+</div>
+
 </body>
 </html>
