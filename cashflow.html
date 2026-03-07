@@ -83,7 +83,23 @@
     <div class="status-icons"><svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg></div>
   </div>
   <div class="screen-content">
-    <div class="page-header"><div class="page-title">收支记录</div><div class="page-sub">记录每月收入与支出</div></div>
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="page-title">收支记录</div>
+        <div class="page-sub">记录每月收入与支出</div>
+      </div>
+      <a href="import.html" style="
+        display:flex;align-items:center;gap:5px;
+        height:34px;padding:0 12px;border-radius:12px;
+        background:var(--surface);border:1px solid var(--border);
+        color:var(--text-muted);font-size:12px;font-weight:500;
+        text-decoration:none;white-space:nowrap;margin-top:4px;
+        transition:border-color 0.15s,color 0.15s;
+      " onmouseenter="this.style.borderColor='rgba(200,240,80,0.4)';this.style.color='var(--accent)'"
+         onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
+        📂 导入账单
+      </a>
+    </div>
     <div class="month-bar">
       <div class="month-btn" id="prev-month">‹</div>
       <div class="month-label" id="month-display">—</div>
@@ -141,6 +157,7 @@
   </div>
 </div>
 
+<script src="js/finance.js"></script>
 <script src="supabase.js"></script>
 <script>
 let currentMonth = '';
