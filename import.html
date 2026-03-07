@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>财务健康 · 导入账单</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3"></script>
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .import-hero {
+      margin: 0 24px 20px;
+      background: linear-gradient(135deg, #1a1f14, #141a1a);
+      border-radius: 20px; padding: 24px;
+      border: 1px solid rgba(200,240,80,0.2); text-align: center;
+    }
+    .import-hero-icon { font-size: 40px; margin-bottom: 12px; }
+    .import-hero-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .import-hero-sub   { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+
+    /* 上传区域 */
+    .upload-zone {
+      margin: 0 24px 16px;
+      border: 2px dashed rgba(200,240,80,0.3);
+      border-radius: 16px; padding: 28px 20px;
+      text-align: center; cursor: pointer;
+      background: var(--accent-dim);
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .upload-zone.dragover { border-color: var(--accent); background: rgba(200,240,80,0.18); }
+    .upload-zone-icon  { font-size: 32px; margin-bottom: 10px; }
+    .upload-zone-text  { font-size: 14px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+    .upload-zone-sub   { font-size: 11px; color: var(--text-muted); }
+    #file-input { display: none; }
+
+    /* 步骤说明 */
+    .steps-card { margin: 0 24px 20px; background: var(--surface); border-radius: 16px; padding: 16px; border: 1px solid var(--border); }
+    .steps-title { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 0.05em; }
+    .step-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+    .step-row:last-child { margin-bottom: 0; }
+    .step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-dim); color: var(--accent); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .step-text { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .step-text strong { color: var(--text); }
+
+    /* 预览表 */
+    .preview-wrap { margin: 0 24px 16px; }
+    .preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .preview-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .preview-count { font-size: 12px; color: var(--text-muted); }
+    .preview-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .pstat { background: var(--surface); border-radius: 12px; padding: 12px; border: 1px solid var(--border); text-align: center; }
+    .pstat-val   { font-size: 16px; font-weight: 700; }
+    .pstat-label { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+    .preview-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
+    .preview-item {
+      background: var(--surface); border-radius: 12px; padding: 10px 12px;
+      border: 1px solid var(--border); display: flex; align-items: center; gap: 10px;
+    }
+    .preview-item.skip { opacity: 0.4; }
+    .pi-icon { font-size: 16px; width: 28px; text-align: center; flex-shrink: 0; }
+    .pi-info { flex: 1; min-width: 0; }
+    .pi-name { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pi-meta { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+    .pi-amt  { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+    .pi-skip-tag { font-size: 9px; color: var(--text-muted); background: var(--surface2); padding: 2px 6px; border-radius: 6px; }
+
+    /* 月份筛选 */
+    .filter-bar { margin: 0 24px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-btn {
+      height: 30px; padding: 0 12px; border-radius: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 12px; font-family: inherit;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+    /* 导入按钮 */
+    .import-btn-wrap { padding: 0 24px 20px; }
+    .import-btn {
+      width: 100%; height: 52px; border: none; border-radius: 16px;
+      background: var(--accent); color: #0f0f13;
+      font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer;
+      transition: transform 0.12s, opacity 0.12s;
+    }
+    .import-btn:active  { transform: scale(0.97); }
+    .import-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* 结果提示 */
+    .result-banner {
+      margin: 0 24px 16px; border-radius: 14px; padding: 14px 16px;
+      display: flex; gap: 10px; align-items: center;
+    }
+    .result-banner.ok   { background: var(--ok-dim);   border: 1px solid rgba(92,240,176,0.2); }
+    .result-banner.err  { background: var(--warn-dim);  border: 1px solid rgba(255,107,107,0.2); }
+    .result-banner-icon { font-size: 20px; }
+    .result-banner-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+
+    .loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200;}
+    .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loading-screen p{font-size:13px;color:var(--text-muted);}
+  </style>
+</head>
+<body>
+<div class="loading-screen" id="loading"><div class="spin"></div><p>加载中…</p></div>
+
+<div class="phone" id="app" style="display:none">
+  <div class="status-bar">
+    <span class="status-time" id="clock">9:41</span>
+    <div class="status-icons"><svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg></div>
+  </div>
+
+  <div class="screen-content">
+    <div class="page-header">
+      <div class="page-title">导入账单</div>
+      <div class="page-sub">支持支付宝 CSV 账单</div>
+    </div>
+
+    <!-- 上传区 -->
+    <div class="upload-zone" id="upload-zone">
+      <div class="upload-zone-icon">📂</div>
+      <div class="upload-zone-text">点击选择 CSV 文件</div>
+      <div class="upload-zone-sub">支付宝 App → 我的 → 账单 → 右上角 ··· → 下载账单</div>
+      <input type="file" id="file-input" accept=".csv">
+    </div>
+
+    <!-- 步骤说明 -->
+    <div class="steps-card">
+      <div class="steps-title">如何导出支付宝账单</div>
+      <div class="step-row"><div class="step-num">1</div><div class="step-text">打开<strong>支付宝 App</strong> → 首页底部「我的」</div></div>
+      <div class="step-row"><div class="step-num">2</div><div class="step-text">点击「账单」→ 右上角 <strong>···</strong> → 「开具交易流水证明」</div></div>
+      <div class="step-row"><div class="step-num">3</div><div class="step-text">选择时间范围，申请后发到<strong>邮箱</strong>，下载 CSV 文件</div></div>
+      <div class="step-row"><div class="step-num">4</div><div class="step-text">回到这里上传，系统自动解析并导入</div></div>
+    </div>
+
+    <!-- 预览区（上传后显示）-->
+    <div id="preview-section" style="display:none">
+      <div class="filter-bar" id="month-filters"></div>
+      <div class="preview-wrap">
+        <div class="preview-header">
+          <div class="preview-title">账单预览</div>
+          <div class="preview-count" id="preview-count"></div>
+        </div>
+        <div class="preview-stats" id="preview-stats"></div>
+        <div class="preview-list" id="preview-list"></div>
+      </div>
+      <div id="result-banner" style="display:none"></div>
+      <div class="import-btn-wrap">
+        <button class="import-btn" id="import-btn">导入到收支记录</button>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="10" width="8" height="10" rx="2" fill="currentColor"/><rect x="12" y="2" width="8" height="18" rx="2" fill="currentColor" opacity="0.6"/></svg><span>总览</span></a>
+    <a href="assets.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="9" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="7" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/></svg><span>资产</span></a>
+    <a href="cashflow.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M4 7l4-4 4 4M18 15l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>收支</span></a>
+    <a href="diagnosis.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 6v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>诊断</span></a>
+    <a href="goals.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="4" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="1.5" fill="currentColor"/></svg><span>目标</span></a>
+  </nav>
+</div>
+
+<script src="supabase.js"></script>
+<script>
+// ── 时钟 ─────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+updateClock(); setInterval(updateClock, 10000);
+
+// ── 支付宝分类 → App 分类映射 ─────────────────────────────
+const CAT_MAP = {
+  // 支出
+  '餐饮':   { id: 'food',      icon: '🍜' },
+  '交通':   { id: 'transport', icon: '🚇' },
+  '购物':   { id: 'shopping',  icon: '🛍️' },
+  '生活日用': { id: 'shopping', icon: '🛍️' },
+  '穿搭美容': { id: 'shopping', icon: '🛍️' },
+  '医疗保健': { id: 'medical',  icon: '🏥' },
+  '酒店旅行': { id: 'entertain',icon: '🎬' },
+  '文娱': { id: 'entertain', icon: '🎬' },
+  '金融保险': { id: 'other',   icon: '📦' },
+  '借还款': { id: 'other',     icon: '📦' },
+  '转账':   { id: 'other',     icon: '📦' },
+  '其他':   { id: 'other',     icon: '📦' },
+  // 收入
+  '投资理财': { id: 'invest',  icon: '📈' },
+  '工资薪资': { id: 'salary',  icon: '💼' },
+  '红包':   { id: 'gift',      icon: '🎁' },
+  '退款':   { id: 'other',     icon: '💰' },
+};
+
+function mapCat(alipayType, alipayIncome) {
+  const cfg = CAT_MAP[alipayType];
+  if (cfg) return cfg;
+  return alipayIncome === 'income'
+    ? { id: 'other', icon: '💰' }
+    : { id: 'other', icon: '📦' };
+}
+
+// ── 解析 CSV ─────────────────────────────────────────────
+function parseAlipayCSV(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  // 找到表头行
+  const headerIdx = lines.findIndex(l => l.startsWith('记录时间'));
+  if (headerIdx === -1) throw new Error('未找到账单数据，请确认是支付宝 CSV 文件');
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const parts = lines[i].split(',');
+    if (parts.length < 5) continue;
+
+    const datetime  = parts[0].trim();
+    const alipayType = parts[1].trim();
+    const flowType  = parts[2].trim(); // 收入 / 支出 / 不计收支
+    const amtRaw    = parts[3].trim().replace(/，/g, '').replace(/,/g, '');
+    const note      = parts[4].trim();
+
+    if (flowType === '不计收支') continue; // 跳过转账/充值
+    if (!datetime || !amtRaw) continue;
+
+    const amount = parseFloat(amtRaw);
+    if (isNaN(amount) || amount <= 0) continue;
+
+    const type     = flowType === '收入' ? 'income' : 'expense';
+    const catCfg   = mapCat(alipayType, type);
+    const month    = datetime.slice(0, 7); // YYYY-MM
+
+    // 备注截断
+    const shortNote = note.length > 20 ? note.slice(0, 20) + '…' : note;
+
+    rows.push({ datetime, month, type, category: catCfg.id, icon: catCfg.icon, name: shortNote || alipayType, amount });
+  }
+  return rows;
+}
+
+// ── 状态 ─────────────────────────────────────────────────
+let allRows      = [];
+let filteredRows = [];
+let selectedMonth = 'all';
+
+// ── 渲染预览 ─────────────────────────────────────────────
+function renderPreview() {
+  filteredRows = selectedMonth === 'all'
+    ? allRows
+    : allRows.filter(r => r.month === selectedMonth);
+
+  const income  = filteredRows.filter(r => r.type === 'income') .reduce((s,r) => s+r.amount, 0);
+  const expense = filteredRows.filter(r => r.type === 'expense').reduce((s,r) => s+r.amount, 0);
+
+  document.getElementById('preview-count').textContent = `共 ${filteredRows.length} 条`;
+  document.getElementById('preview-stats').innerHTML = `
+    <div class="pstat"><div class="pstat-val" style="color:var(--ok)">${fmt(income)}</div><div class="pstat-label">收入</div></div>
+    <div class="pstat"><div class="pstat-val" style="color:var(--warn)">${fmt(expense)}</div><div class="pstat-label">支出</div></div>
+    <div class="pstat"><div class="pstat-val" style="color:${income-expense>=0?'var(--accent)':'var(--warn)'}">${fmt(income-expense)}</div><div class="pstat-label">结余</div></div>`;
+
+  const listEl = document.getElementById('preview-list');
+  listEl.innerHTML = '';
+  filteredRows.slice(0, 60).forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    div.innerHTML = `
+      <div class="pi-icon">${r.icon}</div>
+      <div class="pi-info">
+        <div class="pi-name">${r.name}</div>
+        <div class="pi-meta">${r.month} · ${r.type === 'income' ? '收入' : '支出'}</div>
+      </div>
+      <div class="pi-amt" style="color:${r.type==='income'?'var(--ok)':'var(--warn)'}">
+        ${r.type==='income'?'+':'-'}${fmt(r.amount)}
+      </div>`;
+    listEl.appendChild(div);
+  });
+  if (filteredRows.length > 60) {
+    const more = document.createElement('div');
+    more.style = 'text-align:center;padding:10px;font-size:12px;color:var(--text-muted)';
+    more.textContent = `仅显示前 60 条，共 ${filteredRows.length} 条将全部导入`;
+    listEl.appendChild(more);
+  }
+}
+
+// ── 文件处理 ─────────────────────────────────────────────
+function handleFile(file) {
+  if (!file || !file.name.endsWith('.csv')) {
+    alert('请选择 CSV 文件');
+    return;
+  }
+  const reader = new FileReader();
+  // 尝试 GBK（支付宝默认编码）
+  reader.onload = e => {
+    try {
+      const text = e.target.result;
+      allRows = parseAlipayCSV(text);
+      if (allRows.length === 0) throw new Error('未解析到有效记录');
+
+      // 获取所有月份
+      const months = [...new Set(allRows.map(r => r.month))].sort().reverse();
+      selectedMonth = months[0]; // 默认选最新月
+
+      // 渲染月份筛选
+      const filterEl = document.getElementById('month-filters');
+      filterEl.innerHTML = '';
+      const allBtn = document.createElement('button');
+      allBtn.className = 'filter-btn' + (selectedMonth === 'all' ? ' active' : '');
+      allBtn.textContent = '全部';
+      allBtn.addEventListener('click', () => { selectedMonth = 'all'; updateFilters(); renderPreview(); });
+      filterEl.appendChild(allBtn);
+
+      months.forEach(m => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn' + (m === selectedMonth ? ' active' : '');
+        const [y,mo] = m.split('-');
+        btn.textContent = `${y}年${parseInt(mo)}月`;
+        btn.addEventListener('click', () => { selectedMonth = m; updateFilters(); renderPreview(); });
+        filterEl.appendChild(btn);
+      });
+
+      document.getElementById('preview-section').style.display = '';
+      document.getElementById('result-banner').style.display = 'none';
+      document.getElementById('import-btn').disabled = false;
+      document.getElementById('import-btn').textContent = '导入到收支记录';
+      renderPreview();
+
+      // 滚动到预览区
+      document.getElementById('preview-section').scrollIntoView({ behavior: 'smooth' });
+    } catch(err) {
+      alert('解析失败：' + err.message);
+    }
+  };
+  // GBK 解码
+  reader.readAsText(file, 'GBK');
+}
+
+function updateFilters() {
+  document.querySelectorAll('.filter-btn').forEach((btn, i) => {
+    const months = ['all', ...[...new Set(allRows.map(r => r.month))].sort().reverse()];
+    btn.classList.toggle('active', months[i] === selectedMonth);
+  });
+}
+
+// 点击上传
+document.getElementById('upload-zone').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+document.getElementById('file-input').addEventListener('change', e => {
+  handleFile(e.target.files[0]);
+});
+
+// 拖拽上传
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('dragover');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+// ── 导入 ─────────────────────────────────────────────────
+document.getElementById('import-btn').addEventListener('click', async () => {
+  if (filteredRows.length === 0) return;
+  const btn = document.getElementById('import-btn');
+  btn.disabled = true;
+  btn.textContent = `导入中 0/${filteredRows.length}…`;
+
+  const user = await getUser();
+  if (!user) { window.location.href = 'auth.html'; return; }
+
+  let success = 0, fail = 0;
+  // 批量插入，每次 20 条
+  const chunks = [];
+  for (let i = 0; i < filteredRows.length; i += 20) chunks.push(filteredRows.slice(i, i+20));
+
+  for (const chunk of chunks) {
+    const rows = chunk.map(r => ({
+      user_id:    user.id,
+      type:       r.type,
+      category:   r.category,
+      name:       r.name,
+      amount:     r.amount,
+      icon:       r.icon,
+      date_month: r.month,
+    }));
+    const { error } = await sb.from('cashflow').insert(rows);
+    if (error) { fail += chunk.length; console.error(error); }
+    else        { success += chunk.length; }
+    btn.textContent = `导入中 ${success+fail}/${filteredRows.length}…`;
+  }
+
+  // 结果提示
+  const banner = document.getElementById('result-banner');
+  if (fail === 0) {
+    banner.className = 'result-banner ok';
+    banner.innerHTML = `<div class="result-banner-icon">✅</div><div class="result-banner-text">成功导入 <strong>${success} 条</strong>记录！去收支页面查看吧。</div>`;
+  } else {
+    banner.className = 'result-banner err';
+    banner.innerHTML = `<div class="result-banner-icon">⚠️</div><div class="result-banner-text">导入完成，成功 ${success} 条，失败 ${fail} 条。</div>`;
+  }
+  banner.style.display = 'flex';
+  btn.textContent = '已导入 ✓';
+  btn.disabled = true;
+  banner.scrollIntoView({ behavior: 'smooth' });
+});
+
+// ── 初始化 ───────────────────────────────────────────────
+async function init() {
+  await requireAuth();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+init();
+</script>
+</body>
+</html>
