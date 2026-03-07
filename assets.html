@@ -346,10 +346,13 @@ renderIconGrid('cash');
 render();
 
 // 编辑弹窗：关闭
+function closeEditModal() {
+  document.getElementById('edit-overlay').classList.remove('open');
+}
 document.getElementById('edit-overlay').addEventListener('click', e => {
-  if (e.target.id === 'edit-overlay')
-    document.getElementById('edit-overlay').classList.remove('open');
+  if (e.target === document.getElementById('edit-overlay')) closeEditModal();
 });
+document.getElementById('edit-close-btn').addEventListener('click', closeEditModal);
 
 // 编辑弹窗：保存
 document.getElementById('edit-save-btn').addEventListener('click', async () => {
@@ -377,6 +380,9 @@ document.getElementById('edit-save-btn').addEventListener('click', async () => {
 <div class="edit-overlay" id="edit-overlay">
   <div class="edit-sheet">
     <div class="edit-handle"></div>
+    <div style="display:flex;justify-content:flex-end;padding:0 0 4px">
+      <button id="edit-close-btn" style="background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1">×</button>
+    </div>
     <div class="edit-asset-info">
       <div class="edit-asset-icon" id="edit-icon"></div>
       <div>
