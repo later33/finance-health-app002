@@ -38,12 +38,14 @@ body {
 /* ===== Phone Frame ===== */
 .phone {
   width: 375px;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--bg);
   position: relative;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
+
 
 /* ===== Status Bar ===== */
 .status-bar {
@@ -56,17 +58,16 @@ body {
 
 /* ===== Screen Content ===== */
 .screen-content {
-  flex: 1; overflow-y: auto; scrollbar-width: none; padding-bottom: 80px;
+  flex: 1; overflow-y: auto; scrollbar-width: none; padding-bottom: 16px;
 }
 .screen-content::-webkit-scrollbar { display: none; }
 
 /* ===== Bottom Nav ===== */
 .nav-bar {
-  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-  width: 375px; height: 80px; background: rgba(15,15,19,0.95);
+  height: 80px; background: rgba(15,15,19,0.95);
   backdrop-filter: blur(20px); border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-around; padding-bottom: 8px;
-  z-index: 90;
+  flex-shrink: 0; z-index: 90;
 }
 .nav-item {
   display: flex; flex-direction: column; align-items: center;
