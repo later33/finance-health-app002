@@ -63,11 +63,26 @@
 
     .trend-card {
       margin:0 24px 20px; background:var(--surface);
-      border-radius:20px; padding:18px; border:1px solid var(--border);
+      border-radius:20px; padding:18px 18px 12px; border:1px solid var(--border);
     }
-    .trend-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-    .trend-title  { font-size:13px; font-weight:600; color:var(--text); }
-    .trend-latest { font-size:13px; font-weight:700; color:var(--accent); }
+    .trend-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
+    .trend-title  { font-size:12px; color:var(--text-muted); letter-spacing:0.04em; }
+    .trend-delta  { font-size:11px; font-weight:600; padding:3px 8px; border-radius:8px; }
+    .trend-delta.up   { background:rgba(92,240,176,0.12); color:#5cf0b0; }
+    .trend-delta.down { background:rgba(255,107,107,0.12); color:#ff6b6b; }
+    .trend-delta.flat { background:var(--surface2); color:var(--text-muted); }
+    .trend-val-row { display:flex; align-items:baseline; gap:8px; margin-bottom:14px; }
+    .trend-main-val { font-size:24px; font-weight:800; color:var(--text); }
+    .trend-sub-val  { font-size:12px; color:var(--text-muted); }
+    /* 工具提示 */
+    .trend-tooltip {
+      position:absolute; background:var(--surface2); border:1px solid var(--border);
+      border-radius:10px; padding:6px 10px; pointer-events:none;
+      font-size:11px; color:var(--text); white-space:nowrap; z-index:10;
+      transition:opacity 0.15s; opacity:0;
+    }
+    .trend-tooltip.show { opacity:1; }
+    .trend-chart-wrap { position:relative; }
 
     .user-bar {
       display:flex; justify-content:space-between; align-items:center;
@@ -176,9 +191,16 @@
     <div class="trend-card">
       <div class="trend-header">
         <span class="trend-title">净资产趋势</span>
-        <span class="trend-latest" id="trend-latest"></span>
+        <span class="trend-delta" id="trend-delta"></span>
       </div>
-      <div id="trend-chart"></div>
+      <div class="trend-val-row">
+        <span class="trend-main-val" id="trend-latest"></span>
+        <span class="trend-sub-val" id="trend-period"></span>
+      </div>
+      <div class="trend-chart-wrap">
+        <div class="trend-tooltip" id="trend-tooltip"></div>
+        <div id="trend-chart"></div>
+      </div>
     </div>
 
   </div>
@@ -207,6 +229,7 @@
   </nav>
 </div>
 
+<script src="js/finance.js"></script>
 <script src="supabase.js"></script>
 <script>
 // 时钟
@@ -328,51 +351,153 @@ function renderPie(byType, totalAssets) {
 }
 
 function renderTrend(history, netWorth) {
-  const el = document.getElementById('trend-chart');
-  if (history.length < 2) {
-    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:20px 0">添加资产并每月更新后显示趋势</div>';
+  const el      = document.getElementById('trend-chart');
+  const valEl   = document.getElementById('trend-latest');
+  const deltaEl = document.getElementById('trend-delta');
+  const periodEl= document.getElementById('trend-period');
+  const tooltip = document.getElementById('trend-tooltip');
+
+  // 补充当前快照（如果最新记录不是今天）
+  const allHistory = [...history];
+  const todayLabel = new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}).replace('/','/');
+  if (allHistory.length === 0 || allHistory[allHistory.length-1].netWorth !== netWorth) {
+    allHistory.push({ date: todayLabel, netWorth });
+  }
+
+  if (allHistory.length < 2) {
+    valEl.textContent = fmt(netWorth);
+    deltaEl.className = 'trend-delta flat';
+    deltaEl.textContent = '数据积累中';
+    periodEl.textContent = '';
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:28px 0;line-height:1.8">每次更新资产后会自动记录一个数据点<br>积累 2 个月后显示趋势图</div>';
     return;
   }
 
-  const vals  = history.map(h => h.netWorth);
-  const dates = history.map(h => h.date);
-  const minV  = Math.min(...vals), maxV = Math.max(...vals);
-  const range = maxV - minV || 1;
-  const W = 327, H = 80, PAD = 4;
+  const vals  = allHistory.map(h => h.netWorth);
+  const dates = allHistory.map(h => h.date);
+  const latest = vals[vals.length - 1];
+  const prev   = vals[vals.length - 2];
+  const diff   = latest - prev;
+  const pct    = prev !== 0 ? (diff / Math.abs(prev) * 100) : 0;
 
-  document.getElementById('trend-latest').textContent = fmt(vals[vals.length - 1]);
+  // 顶部数值
+  valEl.textContent = fmt(latest);
+  periodEl.textContent = dates[0] + ' — ' + dates[dates.length - 1];
 
-  const pts = vals.map((v, i) => {
-    const x = PAD + (i / (vals.length - 1)) * (W - PAD * 2);
-    const y = PAD + (1 - (v - minV) / range) * (H - PAD * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
+  // 涨跌标签
+  if (diff > 0) {
+    deltaEl.className = 'trend-delta up';
+    deltaEl.textContent = '+' + fmt(diff) + '  ▲' + Math.abs(pct).toFixed(1) + '%';
+  } else if (diff < 0) {
+    deltaEl.className = 'trend-delta down';
+    deltaEl.textContent = fmt(diff) + '  ▼' + Math.abs(pct).toFixed(1) + '%';
+  } else {
+    deltaEl.className = 'trend-delta flat';
+    deltaEl.textContent = '持平';
+  }
 
-  const lastPt = pts.split(' ').pop().split(',');
-  const maxShow = 6;
-  const step = Math.ceil(dates.length / maxShow);
-  const labelPts = dates.map((d, i) => {
+  // SVG 参数
+  const W = 327, H = 110, PL = 4, PR = 4, PT = 8, PB = 22;
+  const CW = W - PL - PR, CH = H - PT - PB;
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = maxV - minV || maxV * 0.1 || 1;
+
+  function xOf(i) { return PL + (i / (vals.length - 1)) * CW; }
+  function yOf(v) { return PT + (1 - (v - minV) / range) * CH; }
+
+  // 生成平滑曲线（贝塞尔）
+  const points = vals.map((v, i) => ({ x: xOf(i), y: yOf(v) }));
+  let pathD = `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev2 = points[i-1], cur = points[i];
+    const cpx = (prev2.x + cur.x) / 2;
+    pathD += ` C${cpx.toFixed(1)},${prev2.y.toFixed(1)} ${cpx.toFixed(1)},${cur.y.toFixed(1)} ${cur.x.toFixed(1)},${cur.y.toFixed(1)}`;
+  }
+
+  // 填充区域
+  const lastP = points[points.length - 1];
+  const areaD = pathD + ` L${lastP.x.toFixed(1)},${(PT+CH).toFixed(1)} L${PL},${(PT+CH).toFixed(1)} Z`;
+
+  // 日期标签（最多5个）
+  const maxShow = 5;
+  const step = Math.max(1, Math.ceil(dates.length / maxShow));
+  const labels = dates.map((d, i) => {
     if (i % step !== 0 && i !== dates.length - 1) return '';
-    const x = PAD + (i / (vals.length - 1)) * (W - PAD * 2);
-    return `<text x="${x.toFixed(1)}" y="${H + 14}" text-anchor="middle" fill="rgba(240,240,248,0.35)" font-size="9" font-family="sans-serif">${d}</text>`;
+    const x = xOf(i);
+    return `<text x="${x.toFixed(1)}" y="${H}" text-anchor="${i===0?'start':i===dates.length-1?'end':'middle'}" fill="rgba(240,240,248,0.3)" font-size="9.5" font-family="sans-serif">${d}</text>`;
   }).join('');
 
-  const firstPt = pts.split(' ')[0].split(',');
-  const areaPath = `M${firstPt[0]},${H} L${pts.split(' ').map(p => p).join(' L')} L${lastPt[0]},${H} Z`;
+  // 数值标签（最高点和最低点）
+  const maxIdx = vals.indexOf(maxV), minIdx = vals.indexOf(minV);
+  const valLabels = [maxIdx, minIdx].filter((v,i,a) => a.indexOf(v) === i).map(i => {
+    const x = xOf(i), y = yOf(vals[i]);
+    const anchor = i === 0 ? 'start' : i === vals.length - 1 ? 'end' : 'middle';
+    const dy = i === maxIdx ? -8 : 14;
+    return `<text x="${x.toFixed(1)}" y="${(y+dy).toFixed(1)}" text-anchor="${anchor}" fill="rgba(200,240,80,0.6)" font-size="9" font-family="sans-serif" font-weight="600">${fmt(vals[i])}</text>`;
+  }).join('');
 
-  el.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H + 20}" preserveAspectRatio="none">
-    <defs>
-      <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.25"/>
-        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    ${[0.25,0.5,0.75].map(p=>`<line x1="${PAD}" y1="${(PAD+(1-p)*(H-PAD*2)).toFixed(1)}" x2="${W-PAD}" y2="${(PAD+(1-p)*(H-PAD*2)).toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>`).join('')}
-    <path d="${areaPath}" fill="url(#tg)"/>
-    <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="4" fill="var(--accent)"/>
-    ${labelPts}
-  </svg>`;
+  // 数据点
+  const dots = points.map((p, i) =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${i===points.length-1?4.5:2.5}"
+      fill="${i===points.length-1?'var(--accent)':'rgba(200,240,80,0.4)'}"
+      stroke="${i===points.length-1?'rgba(0,0,0,0.3)':'none'}" stroke-width="1.5"
+      class="trend-dot" data-i="${i}"/>`
+  ).join('');
+
+  // 水平参考线
+  const gridLines = [0.25, 0.5, 0.75].map(p => {
+    const y = PT + p * CH;
+    const v = maxV - p * range;
+    return `<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4,4"/>`;
+  }).join('');
+
+  const lineColor = diff >= 0 ? 'var(--accent)' : '#ff6b6b';
+  const gradStop  = diff >= 0 ? 'rgba(200,240,80,' : 'rgba(255,107,107,';
+
+  el.innerHTML = `
+    <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="overflow:visible">
+      <defs>
+        <linearGradient id="tg2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
+        </linearGradient>
+        <clipPath id="clip-trend"><rect x="${PL}" y="${PT}" width="${CW}" height="${CH+2}"/></clipPath>
+      </defs>
+      ${gridLines}
+      <g clip-path="url(#clip-trend)">
+        <path d="${areaD}" fill="url(#tg2)"/>
+        <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      </g>
+      ${valLabels}
+      ${dots}
+      ${labels}
+    </svg>`;
+
+  // 点击/悬停提示
+  el.querySelectorAll('.trend-dot').forEach(dot => {
+    const handler = (e) => {
+      e.stopPropagation();
+      const i = parseInt(dot.dataset.i);
+      const prev3 = i > 0 ? vals[i-1] : null;
+      const d3 = vals[i] - (prev3 ?? vals[i]);
+      const sign = d3 >= 0 ? '+' : '';
+      tooltip.innerHTML = `<strong>${dates[i]}</strong><br>${fmt(vals[i])}${prev3!==null ? '<br><span style="color:'+(d3>=0?'#5cf0b0':'#ff6b6b')+'">'+sign+fmt(d3)+'</span>' : ''}`;
+      // 定位
+      const rect = el.getBoundingClientRect();
+      const cx   = parseFloat(dot.getAttribute('cx'));
+      const pct2 = cx / W;
+      const wrapW = el.offsetWidth;
+      let left = pct2 * wrapW - 60;
+      left = Math.max(0, Math.min(left, wrapW - 130));
+      tooltip.style.left = left + 'px';
+      tooltip.style.top  = '-52px';
+      tooltip.classList.add('show');
+    };
+    dot.addEventListener('click', handler);
+    dot.addEventListener('mouseenter', handler);
+  });
+  el.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+  el.addEventListener('click', (e) => { if (!e.target.classList.contains('trend-dot')) tooltip.classList.remove('show'); });
 }
 
 render();
