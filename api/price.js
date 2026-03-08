@@ -7,9 +7,18 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  const { symbol } = req.query;
+  let { symbol } = req.query;
   if (!symbol) {
     return res.status(400).json({ error: '缺少 symbol 参数' });
+  }
+
+  // 特殊处理：
+  // 港股代码如 0700.HK 保留不变
+  // 美股如 BRK.B → BRK-B（Yahoo Finance 用连字符）
+  // 规则：末尾是 .HK / .US / .SZ / .SS 等交易所后缀的保留，其他的 . 换成 -
+  const isExchangeSuffix = /\.(HK|US|SZ|SS|L|TO|AX|NS|BO)$/i.test(symbol);
+  if (!isExchangeSuffix) {
+    symbol = symbol.replace(/\./g, '-');
   }
 
   try {
