@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>财务健康 · 投资持仓</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="base.css">
+  <style>
+    /* 顶部汇总卡片 */
+    .portfolio-card {
+      margin: 0 24px 16px;
+      background: linear-gradient(135deg, #141a10, #0f1a14);
+      border-radius: 20px; padding: 20px;
+      border: 1px solid rgba(200,240,80,0.2);
+    }
+    .portfolio-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.05em; }
+    .portfolio-total { font-size: 32px; font-weight: 800; color: var(--text); margin-bottom: 14px; }
+    .portfolio-row   { display: flex; gap: 8px; }
+    .portfolio-stat  { flex: 1; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 10px; }
+    .ps-label { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
+    .ps-val   { font-size: 14px; font-weight: 700; }
+    .ps-val.up   { color: var(--ok); }
+    .ps-val.down { color: var(--warn); }
+    .ps-val.flat { color: var(--text-muted); }
+
+    /* 分类 tab */
+    .type-tabs { display: flex; gap: 6px; padding: 0 24px 14px; overflow-x: auto; scrollbar-width: none; }
+    .type-tabs::-webkit-scrollbar { display: none; }
+    .type-tab {
+      height: 30px; padding: 0 14px; border-radius: 10px; white-space: nowrap;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 12px; font-family: inherit;
+      cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+    }
+    .type-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+    /* 持仓列表 */
+    .holdings-list { padding: 0 24px; }
+    .holding-card {
+      background: var(--surface); border-radius: 16px;
+      padding: 14px; margin-bottom: 8px;
+      border: 1px solid var(--border);
+      cursor: pointer; transition: border-color 0.15s, transform 0.12s;
+    }
+    .holding-card:active { transform: scale(0.98); }
+    .holding-card:hover  { border-color: rgba(200,240,80,0.3); }
+
+    .hc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .hc-icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+      background: rgba(200,240,80,0.1);
+    }
+    .hc-info { flex: 1; min-width: 0; }
+    .hc-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .hc-code { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .hc-mktval { text-align: right; }
+    .hc-mktval-num { font-size: 16px; font-weight: 700; color: var(--text); }
+    .hc-pnl { font-size: 11px; margin-top: 2px; font-weight: 600; }
+    .hc-pnl.up   { color: var(--ok); }
+    .hc-pnl.down { color: var(--warn); }
+    .hc-pnl.flat { color: var(--text-muted); }
+
+    /* 持仓详情行 */
+    .hc-bottom { display: flex; gap: 0; border-top: 1px solid var(--border); padding-top: 10px; }
+    .hc-detail { flex: 1; text-align: center; }
+    .hc-detail-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+    .hc-detail-val   { font-size: 12px; font-weight: 500; color: var(--text); }
+    .hc-detail + .hc-detail { border-left: 1px solid var(--border); }
+
+    /* 空状态 */
+    .empty-state { text-align: center; padding: 40px 24px; color: var(--text-muted); }
+    .empty-icon  { font-size: 40px; margin-bottom: 12px; }
+    .empty-text  { font-size: 14px; line-height: 1.7; }
+
+    /* 添加按钮 */
+    .fab-wrap { padding: 0 24px 12px; display: flex; justify-content: flex-end; }
+    .add-fab {
+      height: 44px; padding: 0 20px; border-radius: 22px; border: none;
+      background: var(--accent); color: #0f0f13; font-size: 14px; font-weight: 700;
+      font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: transform 0.12s;
+    }
+    .add-fab:active { transform: scale(0.97); }
+
+    /* 弹窗 */
+    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:flex-end;justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { width:375px;background:var(--surface2);border-radius:28px 28px 0 0;padding:0 24px 44px;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);max-height:90vh;overflow-y:auto; }
+    .modal-overlay.open .modal { transform:translateY(0); }
+    .modal-handle { width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 18px; }
+    .modal-title  { font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px; }
+    .modal-sub    { font-size:12px;color:var(--text-muted);margin-bottom:20px; }
+
+    /* 类型选择 */
+    .htype-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px; }
+    .htype-btn {
+      background:var(--surface);border:1.5px solid var(--border);
+      border-radius:12px;padding:10px 4px;text-align:center;cursor:pointer;transition:all 0.15s;
+    }
+    .htype-btn.selected { border-color:var(--accent);background:var(--accent-dim); }
+    .htype-btn-icon  { font-size:20px; margin-bottom:3px; }
+    .htype-btn-label { font-size:10px;color:var(--text-muted); }
+
+    /* 表单字段 */
+    .field { margin-bottom:14px; }
+    .field label { display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px; }
+    .field input, .field select {
+      width:100%;height:48px;background:var(--surface);border:1.5px solid var(--border);
+      border-radius:12px;padding:0 14px;font-size:15px;font-family:inherit;
+      color:var(--text);outline:none;transition:border-color 0.15s;
+    }
+    .field input:focus, .field select:focus { border-color:var(--accent); }
+    .field-row { display:flex;gap:10px; }
+    .field-row .field { flex:1; }
+    .amount-wrap { position:relative; }
+    .amount-prefix { position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:15px; }
+    .amount-wrap input { padding-left:26px; }
+    .save-btn {
+      width:100%;height:52px;border:none;border-radius:16px;
+      background:var(--accent);color:#0f0f13;font-size:16px;font-weight:700;
+      font-family:inherit;cursor:pointer;margin-top:6px;transition:transform 0.12s,opacity 0.12s;
+    }
+    .save-btn:active  { transform:scale(0.97); }
+    .save-btn:disabled { opacity:0.5;cursor:not-allowed; }
+
+    /* 编辑弹窗 */
+    .edit-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:150;align-items:flex-end;justify-content:center; }
+    .edit-overlay.open { display:flex; }
+    .edit-sheet { width:375px;background:var(--surface2);border-radius:28px 28px 0 0;padding:0 24px 44px;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);max-height:90vh;overflow-y:auto; }
+    .edit-overlay.open .edit-sheet { transform:translateY(0); }
+    .edit-handle { width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 8px; }
+    .edit-top { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px; }
+    .edit-title { font-size:17px;font-weight:700;color:var(--text); }
+    .edit-close { background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:0; }
+    .edit-del-btn {
+      width:100%;height:48px;border:1.5px solid var(--warn);border-radius:14px;
+      background:transparent;color:var(--warn);font-size:14px;font-weight:600;
+      font-family:inherit;cursor:pointer;margin-top:8px;transition:background 0.15s;
+    }
+    .edit-del-btn:active { background:var(--warn-dim); }
+
+    .loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200;}
+    .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loading-screen p{font-size:13px;color:var(--text-muted);}
+  </style>
+</head>
+<body>
+<div class="loading-screen" id="loading"><div class="spin"></div><p>加载中…</p></div>
+
+<div class="phone" id="app" style="display:none">
+  <div class="status-bar">
+    <span class="status-time" id="clock">9:41</span>
+    <div class="status-icons"><svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg></div>
+  </div>
+
+  <div class="screen-content">
+    <div class="page-header">
+      <div class="page-title">投资持仓</div>
+      <div class="page-sub">证券账户明细</div>
+    </div>
+
+    <!-- 持仓汇总 -->
+    <div class="portfolio-card" id="portfolio-card">
+      <div class="portfolio-label">持仓总市值</div>
+      <div class="portfolio-total" id="port-total">¥ —</div>
+      <div class="portfolio-row">
+        <div class="portfolio-stat">
+          <div class="ps-label">总成本</div>
+          <div class="ps-val flat" id="port-cost">—</div>
+        </div>
+        <div class="portfolio-stat">
+          <div class="ps-label">浮动盈亏</div>
+          <div class="ps-val flat" id="port-pnl">—</div>
+        </div>
+        <div class="portfolio-stat">
+          <div class="ps-label">总收益率</div>
+          <div class="ps-val flat" id="port-pct">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分类筛选 -->
+    <div class="type-tabs" id="type-tabs">
+      <button class="type-tab active" data-type="all">全部</button>
+      <button class="type-tab" data-type="stock">股票</button>
+      <button class="type-tab" data-type="fund">基金</button>
+      <button class="type-tab" data-type="bond">债券</button>
+      <button class="type-tab" data-type="crypto">加密</button>
+      <button class="type-tab" data-type="other">其他</button>
+    </div>
+
+    <!-- 添加按钮 -->
+    <div class="fab-wrap">
+      <button class="add-fab" id="add-btn">＋ 添加持仓</button>
+    </div>
+
+    <!-- 持仓列表 -->
+    <div class="holdings-list" id="holdings-list"></div>
+
+  </div>
+
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="10" width="8" height="10" rx="2" fill="currentColor"/><rect x="12" y="2" width="8" height="18" rx="2" fill="currentColor" opacity="0.6"/></svg><span>总览</span></a>
+    <a href="assets.html" class="nav-item active"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="9" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="7" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/></svg><span>资产</span></a>
+    <a href="cashflow.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M4 7l4-4 4 4M18 15l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>收支</span></a>
+    <a href="diagnosis.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 6v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>诊断</span></a>
+    <a href="goals.html" class="nav-item"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="4" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="1.5" fill="currentColor"/></svg><span>目标</span></a>
+  </nav>
+</div>
+
+<!-- 添加持仓弹窗 -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">添加持仓</div>
+    <div class="modal-sub">记录你的证券账户持仓明细</div>
+
+    <div class="htype-grid" id="htype-grid">
+      <div class="htype-btn selected" data-type="stock"><div class="htype-btn-icon">📊</div><div class="htype-btn-label">股票</div></div>
+      <div class="htype-btn" data-type="fund"><div class="htype-btn-icon">📦</div><div class="htype-btn-label">基金</div></div>
+      <div class="htype-btn" data-type="bond"><div class="htype-btn-icon">🏦</div><div class="htype-btn-label">债券</div></div>
+      <div class="htype-btn" data-type="crypto"><div class="htype-btn-icon">🪙</div><div class="htype-btn-label">加密</div></div>
+    </div>
+
+    <div class="field">
+      <label>持仓名称</label>
+      <input type="text" id="input-name" placeholder="如：贵州茅台、沪深300ETF" maxlength="20">
+    </div>
+    <div class="field">
+      <label>股票代码（可选）</label>
+      <input type="text" id="input-code" placeholder="如：600519、159919" maxlength="10">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>持仓数量（股/份）</label>
+        <input type="number" id="input-shares" placeholder="0" min="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>成本价（元）</label>
+        <div class="amount-wrap">
+          <span class="amount-prefix">¥</span>
+          <input type="number" id="input-cost" placeholder="0.00" min="0" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>当前价格（元）</label>
+      <div class="amount-wrap">
+        <span class="amount-prefix">¥</span>
+        <input type="number" id="input-price" placeholder="0.00" min="0" inputmode="decimal">
+      </div>
+    </div>
+    <div class="field">
+      <label>备注（可选）</label>
+      <input type="text" id="input-note" placeholder="如：定投策略、长期持有" maxlength="30">
+    </div>
+    <button class="save-btn" id="save-btn">保存持仓</button>
+  </div>
+</div>
+
+<!-- 编辑持仓弹窗 -->
+<div class="edit-overlay" id="edit-overlay">
+  <div class="edit-sheet">
+    <div class="edit-handle"></div>
+    <div class="edit-top">
+      <div class="edit-title" id="edit-title">编辑持仓</div>
+      <button class="edit-close" id="edit-close">×</button>
+    </div>
+
+    <div class="field">
+      <label>持仓数量（股/份）</label>
+      <input type="number" id="edit-shares" min="0" inputmode="decimal">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>成本价（元）</label>
+        <div class="amount-wrap">
+          <span class="amount-prefix">¥</span>
+          <input type="number" id="edit-cost" min="0" inputmode="decimal">
+        </div>
+      </div>
+      <div class="field">
+        <label>当前价格（元）</label>
+        <div class="amount-wrap">
+          <span class="amount-prefix">¥</span>
+          <input type="number" id="edit-price" min="0" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>备注（可选）</label>
+      <input type="text" id="edit-note" maxlength="30">
+    </div>
+    <button class="save-btn" id="edit-save-btn">保存更新</button>
+    <button class="edit-del-btn" id="edit-del-btn">🗑️ 删除此持仓</button>
+  </div>
+</div>
+
+<script src="js/finance.js"></script>
+<script src="supabase.js"></script>
+<script>
+// ── 时钟 ──────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+updateClock(); setInterval(updateClock, 10000);
+
+// ── 类型配置 ──────────────────────────────────────────
+const HTYPE = {
+  stock:  { label: '股票',   icon: '📊', bg: 'rgba(200,240,80,0.12)' },
+  fund:   { label: '基金',   icon: '📦', bg: 'rgba(96,208,240,0.12)' },
+  bond:   { label: '债券',   icon: '🏦', bg: 'rgba(240,184,76,0.12)' },
+  crypto: { label: '加密货币', icon: '🪙', bg: 'rgba(255,107,107,0.12)' },
+  other:  { label: '其他',   icon: '💼', bg: 'rgba(160,160,200,0.12)' },
+};
+
+// ── 状态 ──────────────────────────────────────────────
+let allHoldings  = [];
+let selectedType = 'all';
+let selectedHType = 'stock';
+
+// ── 数据库操作 ────────────────────────────────────────
+async function loadHoldings() {
+  const { data, error } = await sb.from('holdings').select('*').order('created_at');
+  if (error) { console.error(error); return []; }
+  return data;
+}
+
+async function addHolding(entry) {
+  const user = await getUser();
+  const { error } = await sb.from('holdings').insert({
+    user_id:       user.id,
+    name:          entry.name,
+    code:          entry.code || '',
+    type:          entry.type,
+    shares:        entry.shares,
+    cost_price:    entry.costPrice,
+    current_price: entry.currentPrice,
+    icon:          HTYPE[entry.type]?.icon || '📈',
+    note:          entry.note || '',
+  });
+  if (error) { console.error(error); return false; }
+  return true;
+}
+
+async function updateHolding(id, patch) {
+  const { error } = await sb.from('holdings').update(patch).eq('id', id);
+  if (error) { console.error(error); return false; }
+  return true;
+}
+
+async function deleteHolding(id) {
+  const { error } = await sb.from('holdings').delete().eq('id', id);
+  if (error) { console.error(error); return false; }
+  return true;
+}
+
+// ── 计算 ──────────────────────────────────────────────
+function calcHolding(h) {
+  const mktVal  = Number(h.shares) * Number(h.current_price);
+  const cost    = Number(h.shares) * Number(h.cost_price);
+  const pnl     = mktVal - cost;
+  const pct     = cost > 0 ? (pnl / cost * 100) : 0;
+  return { mktVal, cost, pnl, pct };
+}
+
+// ── 渲染汇总 ──────────────────────────────────────────
+function renderSummary(holdings) {
+  let totalMkt = 0, totalCost = 0;
+  holdings.forEach(h => {
+    const c = calcHolding(h);
+    totalMkt  += c.mktVal;
+    totalCost += c.cost;
+  });
+  const totalPnl = totalMkt - totalCost;
+  const totalPct = totalCost > 0 ? (totalPnl / totalCost * 100) : 0;
+  const cls = totalPnl > 0 ? 'up' : totalPnl < 0 ? 'down' : 'flat';
+
+  document.getElementById('port-total').textContent = '¥ ' + fmt(totalMkt);
+  document.getElementById('port-cost').textContent  = fmt(totalCost);
+  document.getElementById('port-cost').className    = 'ps-val flat';
+  document.getElementById('port-pnl').textContent   = (totalPnl >= 0 ? '+' : '') + fmt(totalPnl);
+  document.getElementById('port-pnl').className     = 'ps-val ' + cls;
+  document.getElementById('port-pct').textContent   = (totalPct >= 0 ? '+' : '') + totalPct.toFixed(2) + '%';
+  document.getElementById('port-pct').className     = 'ps-val ' + cls;
+}
+
+// ── 渲染列表 ──────────────────────────────────────────
+function renderList(holdings) {
+  const listEl = document.getElementById('holdings-list');
+  const filtered = selectedType === 'all'
+    ? holdings
+    : holdings.filter(h => h.type === selectedType);
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <div class="empty-text">还没有持仓记录<br>点击「添加持仓」开始记录</div>
+      </div>`;
+    return;
+  }
+
+  listEl.innerHTML = '';
+  filtered.forEach(h => {
+    const { mktVal, cost, pnl, pct } = calcHolding(h);
+    const cfg = HTYPE[h.type] || HTYPE.other;
+    const cls = pnl > 0 ? 'up' : pnl < 0 ? 'down' : 'flat';
+    const pnlSign = pnl >= 0 ? '+' : '';
+
+    const card = document.createElement('div');
+    card.className = 'holding-card';
+    card.dataset.id = h.id;
+    card.innerHTML = `
+      <div class="hc-top">
+        <div class="hc-icon" style="background:${cfg.bg}">${h.icon}</div>
+        <div class="hc-info">
+          <div class="hc-name">${h.name}</div>
+          <div class="hc-code">${cfg.label}${h.code ? ' · ' + h.code : ''}${h.note ? ' · ' + h.note : ''}</div>
+        </div>
+        <div class="hc-mktval">
+          <div class="hc-mktval-num">${fmt(mktVal)}</div>
+          <div class="hc-pnl ${cls}">${pnlSign}${fmt(pnl)} (${pnlSign}${pct.toFixed(2)}%)</div>
+        </div>
+      </div>
+      <div class="hc-bottom">
+        <div class="hc-detail">
+          <div class="hc-detail-label">持仓数量</div>
+          <div class="hc-detail-val">${Number(h.shares).toLocaleString()}</div>
+        </div>
+        <div class="hc-detail">
+          <div class="hc-detail-label">成本价</div>
+          <div class="hc-detail-val">¥${Number(h.cost_price).toFixed(2)}</div>
+        </div>
+        <div class="hc-detail">
+          <div class="hc-detail-label">现价</div>
+          <div class="hc-detail-val">¥${Number(h.current_price).toFixed(2)}</div>
+        </div>
+        <div class="hc-detail">
+          <div class="hc-detail-label">持仓成本</div>
+          <div class="hc-detail-val">${fmt(cost)}</div>
+        </div>
+      </div>`;
+
+    card.addEventListener('click', () => openEdit(h));
+    listEl.appendChild(card);
+  });
+}
+
+// ── 渲染全部 ──────────────────────────────────────────
+async function render() {
+  allHoldings = await loadHoldings();
+  renderSummary(allHoldings);
+  renderList(allHoldings);
+}
+
+// ── 类型 tab ──────────────────────────────────────────
+document.querySelectorAll('.type-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedType = btn.dataset.type;
+    renderList(allHoldings);
+  });
+});
+
+// ── 持仓类型选择 ──────────────────────────────────────
+document.querySelectorAll('#htype-grid .htype-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#htype-grid .htype-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedHType = btn.dataset.type;
+  });
+});
+
+// ── 添加弹窗 ──────────────────────────────────────────
+document.getElementById('add-btn').addEventListener('click', () => {
+  document.getElementById('input-name').value  = '';
+  document.getElementById('input-code').value  = '';
+  document.getElementById('input-shares').value = '';
+  document.getElementById('input-cost').value  = '';
+  document.getElementById('input-price').value = '';
+  document.getElementById('input-note').value  = '';
+  document.getElementById('modal').classList.add('open');
+});
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open');
+});
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const name  = document.getElementById('input-name').value.trim();
+  const shares = parseFloat(document.getElementById('input-shares').value);
+  const cost   = parseFloat(document.getElementById('input-cost').value);
+  const price  = parseFloat(document.getElementById('input-price').value);
+
+  if (!name)               { alert('请输入持仓名称'); return; }
+  if (isNaN(shares) || shares < 0) { alert('请输入持仓数量'); return; }
+  if (isNaN(cost)   || cost < 0)   { alert('请输入成本价'); return; }
+  if (isNaN(price)  || price < 0)  { alert('请输入当前价格'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '保存中…';
+
+  const ok = await addHolding({
+    name, type: selectedHType,
+    code:  document.getElementById('input-code').value.trim(),
+    note:  document.getElementById('input-note').value.trim(),
+    shares, costPrice: cost, currentPrice: price,
+  });
+
+  btn.disabled = false; btn.textContent = '保存持仓';
+  if (ok) {
+    document.getElementById('modal').classList.remove('open');
+    await render();
+  }
+});
+
+// ── 编辑弹窗 ──────────────────────────────────────────
+function openEdit(h) {
+  document.getElementById('edit-title').textContent = h.name;
+  document.getElementById('edit-shares').value = h.shares;
+  document.getElementById('edit-cost').value   = h.cost_price;
+  document.getElementById('edit-price').value  = h.current_price;
+  document.getElementById('edit-note').value   = h.note || '';
+  document.getElementById('edit-overlay').dataset.id = h.id;
+  document.getElementById('edit-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('edit-price').select(), 350);
+}
+
+function closeEdit() {
+  document.getElementById('edit-overlay').classList.remove('open');
+}
+
+document.getElementById('edit-close').addEventListener('click', closeEdit);
+document.getElementById('edit-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('edit-overlay')) closeEdit();
+});
+
+document.getElementById('edit-save-btn').addEventListener('click', async () => {
+  const id     = document.getElementById('edit-overlay').dataset.id;
+  const shares = parseFloat(document.getElementById('edit-shares').value);
+  const cost   = parseFloat(document.getElementById('edit-cost').value);
+  const price  = parseFloat(document.getElementById('edit-price').value);
+  const note   = document.getElementById('edit-note').value.trim();
+
+  if (isNaN(shares) || isNaN(cost) || isNaN(price)) { alert('请填写完整数据'); return; }
+
+  const btn = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = '保存中…';
+
+  const ok = await updateHolding(id, {
+    shares, cost_price: cost, current_price: price, note
+  });
+
+  btn.disabled = false; btn.textContent = '保存更新';
+  if (ok) { closeEdit(); await render(); }
+});
+
+document.getElementById('edit-del-btn').addEventListener('click', async () => {
+  if (!confirm('确认删除此持仓？')) return;
+  const id = document.getElementById('edit-overlay').dataset.id;
+  await deleteHolding(id);
+  closeEdit();
+  await render();
+});
+
+// ── 初始化 ────────────────────────────────────────────
+async function init() {
+  await requireAuth();
+  await render();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+init();
+</script>
+</body>
+</html>
