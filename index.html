@@ -369,16 +369,17 @@ function renderTrend(history, netWorth) {
     deltaEl.className = 'trend-delta flat';
     deltaEl.textContent = '数据积累中';
     periodEl.textContent = '';
-    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:28px 0;line-height:1.8">每次更新资产后会自动记录一个数据点<br>积累 2 个月后显示趋势图</div>';
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:28px 0;line-height:1.8">每次在「资产」页面更新数据后<br>这里会自动生成趋势图 📈</div>';
     return;
   }
 
   const vals  = allHistory.map(h => h.netWorth);
   const dates = allHistory.map(h => h.date);
   const latest = vals[vals.length - 1];
-  const prev   = vals[vals.length - 2];
-  const diff   = latest - prev;
-  const pct    = prev !== 0 ? (diff / Math.abs(prev) * 100) : 0;
+  const first  = vals[0];
+  const prev   = vals[vals.length - 2]; // 上一个数据点（用于点击提示）
+  const diff   = latest - first; // 对比最早一条，显示整体涨跌
+  const pct    = first !== 0 ? (diff / Math.abs(first) * 100) : 0;
 
   // 顶部数值
   valEl.textContent = fmt(latest);
