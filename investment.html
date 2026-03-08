@@ -142,6 +142,28 @@
     }
     .edit-del-btn:active { background:var(--warn-dim); }
 
+
+
+    /* 三种货币总值 */
+    .currency-totals-row { display:flex; align-items:center; margin:8px 0 0; }
+    .currency-total-item { flex:1; text-align:center; }
+    .ct-cur  { font-size:10px; font-weight:700; color:var(--accent); letter-spacing:0.08em; margin-bottom:4px; }
+    .ct-val  { font-size:18px; font-weight:800; color:var(--text); line-height:1.1; }
+    .ct-sub  { font-size:10px; color:var(--text-muted); margin-top:3px; }
+    .currency-divider { width:1px; height:40px; background:rgba(255,255,255,0.08); flex-shrink:0; }
+
+    /* 货币切换 */
+    .currency-bar { display:flex; align-items:center; justify-content:space-between; padding:0 24px 12px; }
+    .currency-label { font-size:11px; color:var(--text-muted); }
+    .currency-btns  { display:flex; gap:4px; }
+    .currency-btn {
+      height:28px; padding:0 12px; border-radius:8px;
+      background:var(--surface); border:1px solid var(--border);
+      color:var(--text-muted); font-size:11px; font-weight:600;
+      font-family:inherit; cursor:pointer; transition:all 0.15s;
+    }
+    .currency-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+
     .loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200;}
     .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
     @keyframes spin{to{transform:rotate(360deg);}}
@@ -166,10 +188,30 @@
     <!-- 持仓汇总 -->
     <div class="portfolio-card" id="portfolio-card">
       <div class="portfolio-label">持仓总市值</div>
-      <div class="portfolio-total" id="port-total">¥ —</div>
-      <div class="portfolio-row">
+      <!-- 三种货币总值 -->
+      <div class="currency-totals-row">
+        <div class="currency-total-item">
+          <div class="ct-cur">CNY</div>
+          <div class="ct-val" id="port-cny">—</div>
+          <div class="ct-sub">人民币</div>
+        </div>
+        <div class="currency-divider"></div>
+        <div class="currency-total-item">
+          <div class="ct-cur">HKD</div>
+          <div class="ct-val" id="port-hkd">—</div>
+          <div class="ct-sub">港元</div>
+        </div>
+        <div class="currency-divider"></div>
+        <div class="currency-total-item">
+          <div class="ct-cur">USD</div>
+          <div class="ct-val" id="port-usd">—</div>
+          <div class="ct-sub">美元</div>
+        </div>
+      </div>
+      <!-- 盈亏 -->
+      <div class="portfolio-row" style="margin-top:12px">
         <div class="portfolio-stat">
-          <div class="ps-label">总成本</div>
+          <div class="ps-label">总成本（CNY）</div>
           <div class="ps-val flat" id="port-cost">—</div>
         </div>
         <div class="portfolio-stat">
@@ -331,9 +373,51 @@ const HTYPE = {
 };
 
 // ── 状态 ──────────────────────────────────────────────
-let allHoldings  = [];
-let selectedType = 'all';
+let allHoldings   = [];
+let selectedType  = 'all';
 let selectedHType = 'stock';
+let displayCur    = 'CNY'; // 当前显示货币
+let rates         = { HKD: 1, USD: 1, CNY: 1 }; // 相对 CNY 的汇率（CNY=1）
+
+// 货币符号
+const CUR_SYMBOL = { CNY: '¥', HKD: 'HK$', USD: '$' };
+
+// 获取全部汇率（相对 CNY）
+async function fetchRates() {
+  try {
+    const [hkd, usd] = await Promise.all([
+      fetch('/api/rate?from=HKD&to=CNY').then(r => r.json()),
+      fetch('/api/rate?from=USD&to=CNY').then(r => r.json()),
+    ]);
+    if (hkd.rate) rates.HKD = hkd.rate;
+    if (usd.rate) rates.USD = usd.rate;
+    rates.CNY = 1;
+  } catch(e) {
+    console.warn('汇率获取失败，使用默认值', e);
+    rates = { HKD: 0.92, USD: 7.24, CNY: 1 }; // 兜底汇率
+  }
+}
+
+// 将原始价格（按持仓货币）转换到显示货币
+function convertPrice(price, fromCur) {
+  if (fromCur === displayCur) return price;
+  const inCny = price * rates[fromCur]; // 先换成 CNY
+  if (displayCur === 'CNY') return inCny;
+  return inCny / rates[displayCur]; // 再换成目标货币
+}
+
+// 根据股票代码判断原始货币
+function getAssetCurrency(code) {
+  if (!code) return 'CNY';
+  if (/\.HK$/i.test(code)) return 'HKD';
+  // 美股：纯字母或 BRK-B 格式
+  if (/^[A-Z]{1,5}(-[A-Z])?$/i.test(code.trim())) return 'USD';
+  return 'CNY'; // A股默认人民币
+}
+
+function fmtCur(n) {
+  return CUR_SYMBOL[displayCur] + fmt(n);
+}
 
 // ── 数据库操作 ────────────────────────────────────────
 async function loadHoldings() {
@@ -373,32 +457,48 @@ async function deleteHolding(id) {
 
 // ── 计算 ──────────────────────────────────────────────
 function calcHolding(h) {
-  const mktVal  = Number(h.shares) * Number(h.current_price);
-  const cost    = Number(h.shares) * Number(h.cost_price);
-  const pnl     = mktVal - cost;
-  const pct     = cost > 0 ? (pnl / cost * 100) : 0;
-  return { mktVal, cost, pnl, pct };
+  const assetCur = getAssetCurrency(h.code);
+  const rawMkt   = Number(h.shares) * Number(h.current_price);
+  const rawCost  = Number(h.shares) * Number(h.cost_price);
+  // 转换到显示货币
+  const mktVal   = convertPrice(rawMkt,  assetCur);
+  const cost     = convertPrice(rawCost, assetCur);
+  const pnl      = mktVal - cost;
+  const pct      = cost > 0 ? (pnl / cost * 100) : 0;
+  return { mktVal, cost, pnl, pct, assetCur };
 }
 
 // ── 渲染汇总 ──────────────────────────────────────────
 function renderSummary(holdings) {
-  let totalMkt = 0, totalCost = 0;
+  // 所有持仓统一换算成 CNY
+  let totalMktCny = 0, totalCostCny = 0;
   holdings.forEach(h => {
-    const c = calcHolding(h);
-    totalMkt  += c.mktVal;
-    totalCost += c.cost;
+    const assetCur = getAssetCurrency(h.code);
+    const rawMkt   = Number(h.shares) * Number(h.current_price);
+    const rawCost  = Number(h.shares) * Number(h.cost_price);
+    totalMktCny  += rawMkt  * rates[assetCur];
+    totalCostCny += rawCost * rates[assetCur];
   });
-  const totalPnl = totalMkt - totalCost;
-  const totalPct = totalCost > 0 ? (totalPnl / totalCost * 100) : 0;
-  const cls = totalPnl > 0 ? 'up' : totalPnl < 0 ? 'down' : 'flat';
 
-  document.getElementById('port-total').textContent = '¥ ' + fmt(totalMkt);
-  document.getElementById('port-cost').textContent  = fmt(totalCost);
-  document.getElementById('port-cost').className    = 'ps-val flat';
-  document.getElementById('port-pnl').textContent   = (totalPnl >= 0 ? '+' : '') + fmt(totalPnl);
-  document.getElementById('port-pnl').className     = 'ps-val ' + cls;
-  document.getElementById('port-pct').textContent   = (totalPct >= 0 ? '+' : '') + totalPct.toFixed(2) + '%';
-  document.getElementById('port-pct').className     = 'ps-val ' + cls;
+  // 换算三种货币
+  const mktHkd = totalMktCny / rates.HKD;
+  const mktUsd = totalMktCny / rates.USD;
+
+  // 盈亏（以 CNY 计）
+  const totalPnl = totalMktCny - totalCostCny;
+  const totalPct = totalCostCny > 0 ? (totalPnl / totalCostCny * 100) : 0;
+  const cls = totalPnl > 0 ? 'up' : totalPnl < 0 ? 'down' : 'flat';
+  const pnlSign = totalPnl >= 0 ? '+' : '';
+
+  document.getElementById('port-cny').textContent  = '¥'   + fmt(totalMktCny);
+  document.getElementById('port-hkd').textContent  = 'HK$' + fmt(mktHkd);
+  document.getElementById('port-usd').textContent  = '$'   + fmt(mktUsd);
+  document.getElementById('port-cost').textContent = '¥'   + fmt(totalCostCny);
+  document.getElementById('port-cost').className   = 'ps-val flat';
+  document.getElementById('port-pnl').textContent  = pnlSign + '¥' + fmt(totalPnl);
+  document.getElementById('port-pnl').className    = 'ps-val ' + cls;
+  document.getElementById('port-pct').textContent  = pnlSign + totalPct.toFixed(2) + '%';
+  document.getElementById('port-pct').className    = 'ps-val ' + cls;
 }
 
 // ── 渲染列表 ──────────────────────────────────────────
@@ -433,11 +533,11 @@ function renderList(holdings) {
         <div class="hc-icon" style="background:${cfg.bg}">${h.icon}</div>
         <div class="hc-info">
           <div class="hc-name">${h.name}</div>
-          <div class="hc-code">${cfg.label}${h.code ? ' · ' + h.code : ''}${h.note ? ' · ' + h.note : ''}</div>
+          <div class="hc-code">${cfg.label}${h.code ? ' · ' + h.code : ''}${h.note ? ' · ' + h.note : ''}<span style="margin-left:4px;opacity:0.5">${getAssetCurrency(h.code)}</span></div>
         </div>
         <div class="hc-mktval">
-          <div class="hc-mktval-num" id="mktval-${h.id}">${fmt(mktVal)}</div>
-          <div class="hc-pnl ${cls}" id="pnl-${h.id}">${pnlSign}${fmt(pnl)} (${pnlSign}${pct.toFixed(2)}%)</div>
+          <div class="hc-mktval-num" id="mktval-${h.id}">${fmtCur(mktVal)}</div>
+          <div class="hc-pnl ${cls}" id="pnl-${h.id}">${pnlSign}${fmtCur(pnl)} (${pnlSign}${pct.toFixed(2)}%)</div>
         </div>
       </div>
       <div class="hc-bottom">
@@ -455,7 +555,7 @@ function renderList(holdings) {
         </div>
         <div class="hc-detail">
           <div class="hc-detail-label">持仓成本</div>
-          <div class="hc-detail-val">${fmt(cost)}</div>
+          <div class="hc-detail-val">${fmtCur(cost)}</div>
         </div>
       </div>`;
 
@@ -594,6 +694,7 @@ async function fetchPrice(symbol) {
 async function refreshPrices() {
   const btn    = document.getElementById('refresh-btn');
   const status = document.getElementById('refresh-status');
+  await fetchRates(); // 刷新价格同时更新汇率
   const withCode = allHoldings.filter(h => h.code && h.code.trim());
 
   if (withCode.length === 0) {
@@ -648,7 +749,10 @@ async function refreshPrices() {
 // ── 初始化 ────────────────────────────────────────────
 async function init() {
   await requireAuth();
+  await fetchRates(); // 预先获取汇率
   await render();
+
+
   document.getElementById('refresh-btn').addEventListener('click', refreshPrices);
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = '';
