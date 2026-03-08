@@ -183,6 +183,16 @@
       </div>
     </div>
 
+    <!-- 刷新价格栏 -->
+    <div id="refresh-bar" style="display:flex;align-items:center;justify-content:space-between;padding:0 24px 12px;">
+      <div id="refresh-status" style="font-size:11px;color:var(--text-muted)">点击右侧按钮更新最新价格</div>
+      <button id="refresh-btn" style="
+        height:32px;padding:0 14px;border-radius:10px;border:1px solid rgba(200,240,80,0.3);
+        background:rgba(200,240,80,0.1);color:var(--accent);font-size:12px;font-weight:600;
+        font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:5px;transition:opacity 0.15s;
+      ">🔄 刷新价格</button>
+    </div>
+
     <!-- 分类筛选 -->
     <div class="type-tabs" id="type-tabs">
       <button class="type-tab active" data-type="all">全部</button>
@@ -231,8 +241,8 @@
       <input type="text" id="input-name" placeholder="如：贵州茅台、沪深300ETF" maxlength="20">
     </div>
     <div class="field">
-      <label>股票代码（可选）</label>
-      <input type="text" id="input-code" placeholder="如：600519、159919" maxlength="10">
+      <label>股票代码（用于自动更新价格）</label>
+      <input type="text" id="input-code" placeholder="港股: 0700.HK  美股: AAPL" maxlength="15">
     </div>
     <div class="field-row">
       <div class="field">
@@ -416,7 +426,8 @@ function renderList(holdings) {
 
     const card = document.createElement('div');
     card.className = 'holding-card';
-    card.dataset.id = h.id;
+    card.dataset.id   = h.id;
+    card.dataset.code = h.code || '';
     card.innerHTML = `
       <div class="hc-top">
         <div class="hc-icon" style="background:${cfg.bg}">${h.icon}</div>
@@ -425,8 +436,8 @@ function renderList(holdings) {
           <div class="hc-code">${cfg.label}${h.code ? ' · ' + h.code : ''}${h.note ? ' · ' + h.note : ''}</div>
         </div>
         <div class="hc-mktval">
-          <div class="hc-mktval-num">${fmt(mktVal)}</div>
-          <div class="hc-pnl ${cls}">${pnlSign}${fmt(pnl)} (${pnlSign}${pct.toFixed(2)}%)</div>
+          <div class="hc-mktval-num" id="mktval-${h.id}">${fmt(mktVal)}</div>
+          <div class="hc-pnl ${cls}" id="pnl-${h.id}">${pnlSign}${fmt(pnl)} (${pnlSign}${pct.toFixed(2)}%)</div>
         </div>
       </div>
       <div class="hc-bottom">
@@ -440,7 +451,7 @@ function renderList(holdings) {
         </div>
         <div class="hc-detail">
           <div class="hc-detail-label">现价</div>
-          <div class="hc-detail-val">¥${Number(h.current_price).toFixed(2)}</div>
+          <div class="hc-detail-val" id="price-${h.id}">¥${Number(h.current_price).toFixed(2)}</div>
         </div>
         <div class="hc-detail">
           <div class="hc-detail-label">持仓成本</div>
@@ -571,10 +582,74 @@ document.getElementById('edit-del-btn').addEventListener('click', async () => {
   await render();
 });
 
+// ── 实时价格刷新 ──────────────────────────────────────
+async function fetchPrice(symbol) {
+  try {
+    const res = await fetch('/api/price?symbol=' + encodeURIComponent(symbol));
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+async function refreshPrices() {
+  const btn    = document.getElementById('refresh-btn');
+  const status = document.getElementById('refresh-status');
+  const withCode = allHoldings.filter(h => h.code && h.code.trim());
+
+  if (withCode.length === 0) {
+    status.textContent = '没有填写股票代码的持仓，无法自动更新';
+    return;
+  }
+
+  btn.style.opacity = '0.5';
+  btn.disabled = true;
+  status.textContent = '更新中…';
+
+  let updated = 0, failed = 0;
+  for (const h of withCode) {
+    const data = await fetchPrice(h.code.trim());
+    if (!data || !data.price) { failed++; continue; }
+
+    // 更新数据库
+    await updateHolding(h.id, { current_price: data.price });
+
+    // 实时更新 UI（不重新渲染整个列表）
+    const priceEl  = document.getElementById('price-' + h.id);
+    const mktvalEl = document.getElementById('mktval-' + h.id);
+    const pnlEl    = document.getElementById('pnl-' + h.id);
+    if (priceEl) {
+      const newMkt  = Number(h.shares) * data.price;
+      const cost    = Number(h.shares) * Number(h.cost_price);
+      const newPnl  = newMkt - cost;
+      const newPct  = cost > 0 ? (newPnl / cost * 100) : 0;
+      const cls     = newPnl > 0 ? 'up' : newPnl < 0 ? 'down' : 'flat';
+      const sign    = newPnl >= 0 ? '+' : '';
+      const chgTxt  = data.changePct >= 0 ? '+' + data.changePct : data.changePct;
+
+      priceEl.textContent  = '¥' + data.price.toFixed(2) + ' (' + chgTxt + '%)';
+      priceEl.style.color  = data.change >= 0 ? 'var(--ok)' : 'var(--warn)';
+      if (mktvalEl) mktvalEl.textContent = fmt(newMkt);
+      if (pnlEl)    { pnlEl.textContent = sign + fmt(newPnl) + ' (' + sign + newPct.toFixed(2) + '%)'; pnlEl.className = 'hc-pnl ' + cls; }
+      updated++;
+    }
+  }
+
+  // 刷新汇总卡
+  allHoldings = await loadHoldings();
+  renderSummary(allHoldings);
+
+  const now = new Date();
+  const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  status.textContent = `已更新 ${updated} 条${failed > 0 ? '，' + failed + ' 条失败' : ''}（${timeStr}）`;
+  btn.style.opacity = '1';
+  btn.disabled = false;
+}
+
 // ── 初始化 ────────────────────────────────────────────
 async function init() {
   await requireAuth();
   await render();
+  document.getElementById('refresh-btn').addEventListener('click', refreshPrices);
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = '';
 }
