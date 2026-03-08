@@ -2,13 +2,12 @@
    js/db.js · 数据库操作层（只负责和 Supabase 通信）
    ============================================================ */
 
-import { calcStats } from './finance.js';
 
 const SUPABASE_URL = 'https://wnktdhmcaevynmvwifoe.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_5Inbgq67GDKwpQP7iWMb1w_zWSuqE-C';
 
 const { createClient } = supabase;
-export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -19,31 +18,31 @@ export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 // ── 认证 ─────────────────────────────────────────────────
 
-export async function getUser() {
+async function getUser() {
   const { data: { user } } = await sb.auth.getUser();
   return user;
 }
 
-export async function requireAuth() {
+async function requireAuth() {
   const user = await getUser();
   if (!user) { window.location.href = 'auth.html'; return null; }
   return user;
 }
 
-export async function signOut() {
+async function signOut() {
   await sb.auth.signOut();
   window.location.href = 'auth.html';
 }
 
 // ── 资产 ─────────────────────────────────────────────────
 
-export async function dbLoadAssets() {
+async function dbLoadAssets() {
   const { data, error } = await sb.from('assets').select('*').order('created_at');
   if (error) { console.error(error); return []; }
   return data;
 }
 
-export async function dbAddAsset(entry) {
+async function dbAddAsset(entry) {
   const user = await getUser();
   const { data, error } = await sb.from('assets').insert({
     user_id: user.id,
@@ -58,7 +57,7 @@ export async function dbAddAsset(entry) {
   return data;
 }
 
-export async function dbDeleteAsset(id) {
+async function dbDeleteAsset(id) {
   const { error } = await sb.from('assets').delete().eq('id', id);
   if (error) console.error(error);
   await dbSaveSnapshot();
@@ -66,7 +65,7 @@ export async function dbDeleteAsset(id) {
 
 // ── 净资产快照 ────────────────────────────────────────────
 
-export async function dbSaveSnapshot() {
+async function dbSaveSnapshot() {
   const user   = await getUser();
   const assets = await dbLoadAssets();
   const stats  = calcStats(assets);
@@ -80,7 +79,7 @@ export async function dbSaveSnapshot() {
   });
 }
 
-export async function dbLoadHistory() {
+async function dbLoadHistory() {
   const { data, error } = await sb
     .from('net_worth_history').select('*')
     .order('date_label').limit(12);
@@ -93,7 +92,7 @@ export async function dbLoadHistory() {
 
 // ── 收支 ─────────────────────────────────────────────────
 
-export async function dbLoadCashflow(month) {
+async function dbLoadCashflow(month) {
   let q = sb.from('cashflow').select('*').order('created_at');
   if (month) q = q.eq('date_month', month);
   const { data, error } = await q;
@@ -101,7 +100,7 @@ export async function dbLoadCashflow(month) {
   return data;
 }
 
-export async function dbAddCashflow(entry) {
+async function dbAddCashflow(entry) {
   const user = await getUser();
   const { data, error } = await sb.from('cashflow').insert({
     user_id:    user.id,
@@ -116,20 +115,20 @@ export async function dbAddCashflow(entry) {
   return data;
 }
 
-export async function dbDeleteCashflow(id) {
+async function dbDeleteCashflow(id) {
   const { error } = await sb.from('cashflow').delete().eq('id', id);
   if (error) console.error(error);
 }
 
 // ── 目标 ─────────────────────────────────────────────────
 
-export async function dbLoadGoals() {
+async function dbLoadGoals() {
   const { data, error } = await sb.from('goals').select('*').order('created_at');
   if (error) { console.error(error); return []; }
   return data;
 }
 
-export async function dbSaveGoal(goal, editId = null) {
+async function dbSaveGoal(goal, editId = null) {
   const user = await getUser();
   if (editId) {
     const { error } = await sb.from('goals').update({
@@ -147,7 +146,7 @@ export async function dbSaveGoal(goal, editId = null) {
   }
 }
 
-export async function dbDeleteGoal(id) {
+async function dbDeleteGoal(id) {
   const { error } = await sb.from('goals').delete().eq('id', id);
   if (error) console.error(error);
 }
