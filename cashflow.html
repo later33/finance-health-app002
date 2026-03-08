@@ -150,9 +150,9 @@
     <div class="report-card" id="report-card">
       <div class="report-header" id="report-toggle">
         <div class="report-title">📊 月度报告</div>
-        <div class="report-toggle-icon" id="report-arrow">›</div>
+        <div class="report-toggle-icon open" id="report-arrow">›</div>
       </div>
-      <div class="report-body" id="report-body" style="display:none">
+      <div class="report-body" id="report-body">
         <!-- 本月 vs 上月对比 -->
         <div class="compare-row" id="compare-row"></div>
         <!-- 支出分类图 -->
@@ -508,9 +508,9 @@ render();
 document.getElementById('report-toggle').addEventListener('click', () => {
   const body  = document.getElementById('report-body');
   const arrow = document.getElementById('report-arrow');
-  const open  = body.style.display === 'none';
-  body.style.display  = open ? '' : 'none';
-  arrow.classList.toggle('open', open);
+  const isOpen = body.style.display !== 'none';
+  body.style.display  = isOpen ? 'none' : '';
+  arrow.classList.toggle('open', !isOpen);
 });
 </script>
   <script>
