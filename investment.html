@@ -315,6 +315,10 @@
     </div>
 
     <div class="field">
+      <label>股票代码</label>
+      <input type="text" id="edit-code" placeholder="如: 0700.HK / AAPL / BRK.B" maxlength="15">
+    </div>
+    <div class="field">
       <label>持仓数量（股/份）</label>
       <input type="number" id="edit-shares" min="0" inputmode="decimal">
     </div>
@@ -400,10 +404,14 @@ function convertPrice(price, fromCur) {
 // 根据股票代码判断原始货币
 function getAssetCurrency(code) {
   if (!code) return 'CNY';
-  if (/\.HK$/i.test(code)) return 'HKD';
-  // 美股：纯字母或 BRK-B 格式
-  if (/^[A-Z]{1,5}(-[A-Z])?$/i.test(code.trim())) return 'USD';
-  return 'CNY'; // A股默认人民币
+  const c = code.trim().toUpperCase();
+  // 港股：末尾 .HK
+  if (/\.HK$/.test(c)) return 'HKD';
+  // 美股：纯字母1-5位（AAPL）、含连字符（BRK-B）、含点但非交易所后缀（BRK.B）
+  if (/^[A-Z]{1,5}$/.test(c)) return 'USD';
+  if (/^[A-Z]{1,4}[\-\.][A-Z]{1,2}$/.test(c)) return 'USD';
+  // 其余（纯数字6位等）→ A股 CNY
+  return 'CNY';
 }
 
 function fmtCur(n) {
@@ -626,6 +634,7 @@ document.getElementById('save-btn').addEventListener('click', async () => {
 // ── 编辑弹窗 ──────────────────────────────────────────
 function openEdit(h) {
   document.getElementById('edit-title').textContent = h.name;
+  document.getElementById('edit-code').value   = h.code  || '';
   document.getElementById('edit-shares').value = h.shares;
   document.getElementById('edit-cost').value   = h.cost_price;
   document.getElementById('edit-price').value  = h.current_price;
@@ -646,6 +655,7 @@ document.getElementById('edit-overlay').addEventListener('click', e => {
 
 document.getElementById('edit-save-btn').addEventListener('click', async () => {
   const id     = document.getElementById('edit-overlay').dataset.id;
+  const code   = document.getElementById('edit-code').value.trim();
   const shares = parseFloat(document.getElementById('edit-shares').value);
   const cost   = parseFloat(document.getElementById('edit-cost').value);
   const price  = parseFloat(document.getElementById('edit-price').value);
@@ -656,8 +666,9 @@ document.getElementById('edit-save-btn').addEventListener('click', async () => {
   const btn = document.getElementById('edit-save-btn');
   btn.disabled = true; btn.textContent = '保存中…';
 
+  // 更新 icon（如果代码变了，同步更新持仓类型图标）
   const ok = await updateHolding(id, {
-    shares, cost_price: cost, current_price: price, note
+    code, shares, cost_price: cost, current_price: price, note
   });
 
   btn.disabled = false; btn.textContent = '保存更新';
