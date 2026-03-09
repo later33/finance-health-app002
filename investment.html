@@ -447,7 +447,7 @@ function renderList(list) {
         <div class="hc-detail"><div class="hc-detail-label">持仓数量</div><div class="hc-detail-val">${Number(h.shares).toLocaleString()}</div></div>
         <div class="hc-detail"><div class="hc-detail-label">成本价</div><div class="hc-detail-val">${Number(h.cost_price).toFixed(2)}</div></div>
         <div class="hc-detail"><div class="hc-detail-label">现价</div><div class="hc-detail-val" id="px-${h.id}">${Number(h.current_price).toFixed(2)}</div></div>
-        <div class="hc-detail"><div class="hc-detail-label">持仓成本</div><div class="hc-detail-val">${fmtOrig(Number(h.shares)*Number(h.cost_price), origCur)}</div></div>
+        <div class="hc-detail"><div class="hc-detail-label">持仓成本</div><div class="hc-detail-val">${fmtD(costVal)}</div></div>
       </div>`;
     card.addEventListener('click', () => openEdit(h));
     el.appendChild(card);
