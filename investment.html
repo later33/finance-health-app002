@@ -7,7 +7,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="base.css">
   <style>
-    /* 顶部汇总卡片 */
     .portfolio-card {
       margin: 0 24px 16px;
       background: linear-gradient(135deg, #141a10, #0f1a14);
@@ -15,7 +14,17 @@
       border: 1px solid rgba(200,240,80,0.2);
     }
     .portfolio-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.05em; }
-    .portfolio-total { font-size: 32px; font-weight: 800; color: var(--text); margin-bottom: 14px; }
+
+    .cur-switch { display:flex; gap:6px; margin:8px 0 14px; }
+    .cur-sw-btn {
+      flex:1; height:28px; border-radius:8px;
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+      color:var(--text-muted); font-size:11px; font-weight:600;
+      font-family:inherit; cursor:pointer; transition:all 0.15s;
+    }
+    .cur-sw-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+
+    .portfolio-total { font-size: 30px; font-weight: 800; color: var(--text); margin-bottom: 14px; }
     .portfolio-row   { display: flex; gap: 8px; }
     .portfolio-stat  { flex: 1; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 10px; }
     .ps-label { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
@@ -24,7 +33,6 @@
     .ps-val.down { color: var(--warn); }
     .ps-val.flat { color: var(--text-muted); }
 
-    /* 分类 tab */
     .type-tabs { display: flex; gap: 6px; padding: 0 24px 14px; overflow-x: auto; scrollbar-width: none; }
     .type-tabs::-webkit-scrollbar { display: none; }
     .type-tab {
@@ -35,7 +43,6 @@
     }
     .type-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 
-    /* 持仓列表 */
     .holdings-list { padding: 0 24px; }
     .holding-card {
       background: var(--surface); border-radius: 16px;
@@ -45,47 +52,38 @@
     }
     .holding-card:active { transform: scale(0.98); }
     .holding-card:hover  { border-color: rgba(200,240,80,0.3); }
-
     .hc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .hc-icon {
       width: 40px; height: 40px; border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
       font-size: 18px; flex-shrink: 0;
-      background: rgba(200,240,80,0.1);
     }
     .hc-info { flex: 1; min-width: 0; }
     .hc-name { font-size: 14px; font-weight: 600; color: var(--text); }
-    .hc-code { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-    .hc-mktval { text-align: right; }
+    .hc-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .hc-right { text-align: right; }
     .hc-mktval-num { font-size: 16px; font-weight: 700; color: var(--text); }
     .hc-pnl { font-size: 11px; margin-top: 2px; font-weight: 600; }
     .hc-pnl.up   { color: var(--ok); }
     .hc-pnl.down { color: var(--warn); }
     .hc-pnl.flat { color: var(--text-muted); }
-
-    /* 持仓详情行 */
-    .hc-bottom { display: flex; gap: 0; border-top: 1px solid var(--border); padding-top: 10px; }
+    .hc-bottom { display: flex; border-top: 1px solid var(--border); padding-top: 10px; }
     .hc-detail { flex: 1; text-align: center; }
     .hc-detail-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
     .hc-detail-val   { font-size: 12px; font-weight: 500; color: var(--text); }
     .hc-detail + .hc-detail { border-left: 1px solid var(--border); }
 
-    /* 空状态 */
     .empty-state { text-align: center; padding: 40px 24px; color: var(--text-muted); }
     .empty-icon  { font-size: 40px; margin-bottom: 12px; }
     .empty-text  { font-size: 14px; line-height: 1.7; }
 
-    /* 添加按钮 */
     .fab-wrap { padding: 0 24px 12px; display: flex; justify-content: flex-end; }
     .add-fab {
       height: 44px; padding: 0 20px; border-radius: 22px; border: none;
       background: var(--accent); color: #0f0f13; font-size: 14px; font-weight: 700;
       font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 6px;
-      transition: transform 0.12s;
     }
-    .add-fab:active { transform: scale(0.97); }
 
-    /* 弹窗 */
     .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:flex-end;justify-content:center; }
     .modal-overlay.open { display:flex; }
     .modal { width:375px;background:var(--surface2);border-radius:28px 28px 0 0;padding:0 24px 44px;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);max-height:90vh;overflow-y:auto; }
@@ -94,83 +92,50 @@
     .modal-title  { font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px; }
     .modal-sub    { font-size:12px;color:var(--text-muted);margin-bottom:20px; }
 
-    /* 类型选择 */
     .htype-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px; }
-    .htype-btn {
-      background:var(--surface);border:1.5px solid var(--border);
-      border-radius:12px;padding:10px 4px;text-align:center;cursor:pointer;transition:all 0.15s;
-    }
+    .htype-btn { background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:10px 4px;text-align:center;cursor:pointer;transition:all 0.15s; }
     .htype-btn.selected { border-color:var(--accent);background:var(--accent-dim); }
     .htype-btn-icon  { font-size:20px; margin-bottom:3px; }
     .htype-btn-label { font-size:10px;color:var(--text-muted); }
 
-    /* 表单字段 */
     .field { margin-bottom:14px; }
     .field label { display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px; }
-    .field input, .field select {
+    .field input {
       width:100%;height:48px;background:var(--surface);border:1.5px solid var(--border);
       border-radius:12px;padding:0 14px;font-size:15px;font-family:inherit;
-      color:var(--text);outline:none;transition:border-color 0.15s;
+      color:var(--text);outline:none;transition:border-color 0.15s;box-sizing:border-box;
     }
-    .field input:focus, .field select:focus { border-color:var(--accent); }
+    .field input:focus { border-color:var(--accent); }
     .field-row { display:flex;gap:10px; }
     .field-row .field { flex:1; }
     .amount-wrap { position:relative; }
-    .amount-prefix { position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:15px; }
+    .amount-prefix { position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:15px;pointer-events:none; }
     .amount-wrap input { padding-left:26px; }
     .save-btn {
       width:100%;height:52px;border:none;border-radius:16px;
       background:var(--accent);color:#0f0f13;font-size:16px;font-weight:700;
-      font-family:inherit;cursor:pointer;margin-top:6px;transition:transform 0.12s,opacity 0.12s;
+      font-family:inherit;cursor:pointer;margin-top:6px;
     }
-    .save-btn:active  { transform:scale(0.97); }
     .save-btn:disabled { opacity:0.5;cursor:not-allowed; }
 
-    /* 编辑弹窗 */
     .edit-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:150;align-items:flex-end;justify-content:center; }
     .edit-overlay.open { display:flex; }
     .edit-sheet { width:375px;background:var(--surface2);border-radius:28px 28px 0 0;padding:0 24px 44px;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);max-height:90vh;overflow-y:auto; }
     .edit-overlay.open .edit-sheet { transform:translateY(0); }
     .edit-handle { width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 8px; }
     .edit-top { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px; }
-    .edit-title { font-size:17px;font-weight:700;color:var(--text); }
+    .edit-title-text { font-size:17px;font-weight:700;color:var(--text); }
     .edit-close { background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:0; }
-    .edit-del-btn {
+    .del-btn {
       width:100%;height:48px;border:1.5px solid var(--warn);border-radius:14px;
       background:transparent;color:var(--warn);font-size:14px;font-weight:600;
-      font-family:inherit;cursor:pointer;margin-top:8px;transition:background 0.15s;
+      font-family:inherit;cursor:pointer;margin-top:8px;
     }
-    .edit-del-btn:active { background:var(--warn-dim); }
 
-
-
-    /* 货币切换按钮 */
-    .cur-switch { display:flex; gap:6px; margin:10px 0 12px; }
-    .cur-sw-btn {
-      flex:1; height:28px; border-radius:8px;
-      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
-      color:var(--text-muted); font-size:11px; font-weight:600;
-      font-family:inherit; cursor:pointer; transition:all 0.15s;
-    }
-    .cur-sw-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
-    .portfolio-total { font-size:30px; font-weight:800; color:var(--text); margin-bottom:14px; }
-
-    /* 货币切换 */
-    .currency-bar { display:flex; align-items:center; justify-content:space-between; padding:0 24px 12px; }
-    .currency-label { font-size:11px; color:var(--text-muted); }
-    .currency-btns  { display:flex; gap:4px; }
-    .currency-btn {
-      height:28px; padding:0 12px; border-radius:8px;
-      background:var(--surface); border:1px solid var(--border);
-      color:var(--text-muted); font-size:11px; font-weight:600;
-      font-family:inherit; cursor:pointer; transition:all 0.15s;
-    }
-    .currency-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
-
-    .loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200;}
-    .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
-    @keyframes spin{to{transform:rotate(360deg);}}
-    .loading-screen p{font-size:13px;color:var(--text-muted);}
+    .loading-screen { position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200; }
+    .spin { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .loading-screen p { font-size:13px;color:var(--text-muted); }
   </style>
 </head>
 <body>
@@ -188,18 +153,14 @@
       <div class="page-sub">证券账户明细</div>
     </div>
 
-    <!-- 持仓汇总 -->
-    <div class="portfolio-card" id="portfolio-card">
+    <div class="portfolio-card">
       <div class="portfolio-label">持仓总市值</div>
-      <!-- 货币切换按钮 -->
       <div class="cur-switch">
-        <button class="cur-sw-btn" data-cur="CNY">¥ CNY</button>
-        <button class="cur-sw-btn" data-cur="HKD">HK$ HKD</button>
-        <button class="cur-sw-btn active" data-cur="USD">$ USD</button>
+        <button class="cur-sw-btn" data-cur="CNY">¥ 人民币</button>
+        <button class="cur-sw-btn" data-cur="HKD">HK$ 港元</button>
+        <button class="cur-sw-btn active" data-cur="USD">$ 美元</button>
       </div>
-      <!-- 总市值大字 -->
       <div class="portfolio-total" id="port-total">—</div>
-      <!-- 盈亏统计 -->
       <div class="portfolio-row">
         <div class="portfolio-stat">
           <div class="ps-label">总成本</div>
@@ -216,18 +177,12 @@
       </div>
     </div>
 
-    <!-- 刷新价格栏 -->
-    <div id="refresh-bar" style="display:flex;align-items:center;justify-content:space-between;padding:0 24px 12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 24px 12px;">
       <div id="refresh-status" style="font-size:11px;color:var(--text-muted)">点击右侧按钮更新最新价格</div>
-      <button id="refresh-btn" style="
-        height:32px;padding:0 14px;border-radius:10px;border:1px solid rgba(200,240,80,0.3);
-        background:rgba(200,240,80,0.1);color:var(--accent);font-size:12px;font-weight:600;
-        font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:5px;transition:opacity 0.15s;
-      ">🔄 刷新价格</button>
+      <button id="refresh-btn" style="height:32px;padding:0 14px;border-radius:10px;border:1px solid rgba(200,240,80,0.3);background:rgba(200,240,80,0.1);color:var(--accent);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">🔄 刷新价格</button>
     </div>
 
-    <!-- 分类筛选 -->
-    <div class="type-tabs" id="type-tabs">
+    <div class="type-tabs">
       <button class="type-tab active" data-type="all">全部</button>
       <button class="type-tab" data-type="stock">股票</button>
       <button class="type-tab" data-type="fund">基金</button>
@@ -236,14 +191,11 @@
       <button class="type-tab" data-type="other">其他</button>
     </div>
 
-    <!-- 添加按钮 -->
     <div class="fab-wrap">
       <button class="add-fab" id="add-btn">＋ 添加持仓</button>
     </div>
 
-    <!-- 持仓列表 -->
     <div class="holdings-list" id="holdings-list"></div>
-
   </div>
 
   <nav class="nav-bar">
@@ -256,52 +208,50 @@
 </div>
 
 <!-- 添加持仓弹窗 -->
-<div class="modal-overlay" id="modal">
+<div class="modal-overlay" id="add-modal">
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">添加持仓</div>
     <div class="modal-sub">记录你的证券账户持仓明细</div>
-
     <div class="htype-grid" id="htype-grid">
       <div class="htype-btn selected" data-type="stock"><div class="htype-btn-icon">📊</div><div class="htype-btn-label">股票</div></div>
       <div class="htype-btn" data-type="fund"><div class="htype-btn-icon">📦</div><div class="htype-btn-label">基金</div></div>
       <div class="htype-btn" data-type="bond"><div class="htype-btn-icon">🏦</div><div class="htype-btn-label">债券</div></div>
       <div class="htype-btn" data-type="crypto"><div class="htype-btn-icon">🪙</div><div class="htype-btn-label">加密</div></div>
     </div>
-
     <div class="field">
       <label>持仓名称</label>
-      <input type="text" id="input-name" placeholder="如：贵州茅台、沪深300ETF" maxlength="20">
+      <input type="text" id="add-name" placeholder="如：苹果、腾讯控股" maxlength="20">
     </div>
     <div class="field">
-      <label>股票代码（用于自动更新价格）</label>
-      <input type="text" id="input-code" placeholder="港股: 0700.HK  美股: AAPL" maxlength="15">
+      <label>股票代码（用于自动更新价格和识别货币）</label>
+      <input type="text" id="add-code" placeholder="港股: 0700.HK  美股: AAPL / BRK.B  A股: 600519" maxlength="15">
     </div>
     <div class="field-row">
       <div class="field">
         <label>持仓数量（股/份）</label>
-        <input type="number" id="input-shares" placeholder="0" min="0" inputmode="decimal">
+        <input type="number" id="add-shares" placeholder="0" min="0" inputmode="decimal">
       </div>
       <div class="field">
-        <label>成本价（元）</label>
+        <label>成本价（原始货币）</label>
         <div class="amount-wrap">
           <span class="amount-prefix">¥</span>
-          <input type="number" id="input-cost" placeholder="0.00" min="0" inputmode="decimal">
+          <input type="number" id="add-cost" placeholder="0.00" min="0" inputmode="decimal">
         </div>
       </div>
     </div>
     <div class="field">
-      <label>当前价格（元）</label>
+      <label>当前价格（原始货币）</label>
       <div class="amount-wrap">
         <span class="amount-prefix">¥</span>
-        <input type="number" id="input-price" placeholder="0.00" min="0" inputmode="decimal">
+        <input type="number" id="add-price" placeholder="0.00" min="0" inputmode="decimal">
       </div>
     </div>
     <div class="field">
       <label>备注（可选）</label>
-      <input type="text" id="input-note" placeholder="如：定投策略、长期持有" maxlength="30">
+      <input type="text" id="add-note" placeholder="如：定投策略、长期持有" maxlength="30">
     </div>
-    <button class="save-btn" id="save-btn">保存持仓</button>
+    <button class="save-btn" id="add-save-btn">保存持仓</button>
   </div>
 </div>
 
@@ -310,13 +260,12 @@
   <div class="edit-sheet">
     <div class="edit-handle"></div>
     <div class="edit-top">
-      <div class="edit-title" id="edit-title">编辑持仓</div>
+      <div class="edit-title-text" id="edit-title">编辑持仓</div>
       <button class="edit-close" id="edit-close">×</button>
     </div>
-
     <div class="field">
-      <label>股票代码</label>
-      <input type="text" id="edit-code" placeholder="如: 0700.HK / AAPL / BRK.B" maxlength="15">
+      <label>股票代码（修改后自动识别货币）</label>
+      <input type="text" id="edit-code" placeholder="港股: 0700.HK  美股: AAPL / BRK.B  A股: 600519" maxlength="15">
     </div>
     <div class="field">
       <label>持仓数量（股/份）</label>
@@ -324,14 +273,14 @@
     </div>
     <div class="field-row">
       <div class="field">
-        <label>成本价（元）</label>
+        <label>成本价（原始货币）</label>
         <div class="amount-wrap">
           <span class="amount-prefix">¥</span>
           <input type="number" id="edit-cost" min="0" inputmode="decimal">
         </div>
       </div>
       <div class="field">
-        <label>当前价格（元）</label>
+        <label>当前价格（原始货币）</label>
         <div class="amount-wrap">
           <span class="amount-prefix">¥</span>
           <input type="number" id="edit-price" min="0" inputmode="decimal">
@@ -343,41 +292,63 @@
       <input type="text" id="edit-note" maxlength="30">
     </div>
     <button class="save-btn" id="edit-save-btn">保存更新</button>
-    <button class="edit-del-btn" id="edit-del-btn">🗑️ 删除此持仓</button>
+    <button class="del-btn" id="edit-del-btn">🗑️ 删除此持仓</button>
   </div>
 </div>
 
 <script src="js/finance.js"></script>
 <script src="supabase.js"></script>
 <script>
-// ── 时钟 ──────────────────────────────────────────────
+// 时钟
 function updateClock() {
-  const now = new Date();
-  document.getElementById('clock').textContent =
-    now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  const n = new Date();
+  document.getElementById('clock').textContent = n.getHours() + ':' + String(n.getMinutes()).padStart(2,'0');
 }
 updateClock(); setInterval(updateClock, 10000);
 
-// ── 类型配置 ──────────────────────────────────────────
+// 类型配置
 const HTYPE = {
-  stock:  { label: '股票',   icon: '📊', bg: 'rgba(200,240,80,0.12)' },
-  fund:   { label: '基金',   icon: '📦', bg: 'rgba(96,208,240,0.12)' },
-  bond:   { label: '债券',   icon: '🏦', bg: 'rgba(240,184,76,0.12)' },
-  crypto: { label: '加密货币', icon: '🪙', bg: 'rgba(255,107,107,0.12)' },
-  other:  { label: '其他',   icon: '💼', bg: 'rgba(160,160,200,0.12)' },
+  stock:  { label:'股票',    icon:'📊', bg:'rgba(200,240,80,0.12)' },
+  fund:   { label:'基金',    icon:'📦', bg:'rgba(96,208,240,0.12)' },
+  bond:   { label:'债券',    icon:'🏦', bg:'rgba(240,184,76,0.12)' },
+  crypto: { label:'加密货币', icon:'🪙', bg:'rgba(255,107,107,0.12)' },
+  other:  { label:'其他',    icon:'💼', bg:'rgba(160,160,200,0.12)' },
 };
 
-// ── 状态 ──────────────────────────────────────────────
-let allHoldings   = [];
-let selectedType  = 'all';
-let selectedHType = 'stock';
-let displayCur    = 'USD'; // 当前显示货币
-let rates         = { HKD: 1, USD: 1, CNY: 1 }; // 相对 CNY 的汇率（CNY=1）
+// 全局状态
+let allHoldings  = [];
+let selectedType = 'all';
+let addHType     = 'stock';
+let displayCur   = 'USD';
+// 汇率：1单位外币 = X 人民币（CNY基准=1）
+let rates        = { CNY:1, HKD:0.92, USD:7.24 };
 
-// 货币符号
-const CUR_SYMBOL = { CNY: '¥', HKD: 'HK$', USD: '$' };
+const CUR_SYM = { CNY:'¥', HKD:'HK$', USD:'$' };
 
-// 获取全部汇率（相对 CNY）
+// 根据代码判断原始货币
+function getOriginalCur(code) {
+  if (!code) return 'CNY';
+  const c = code.trim().toUpperCase();
+  if (/\.HK$/.test(c)) return 'HKD';
+  if (/^[A-Z]{1,5}$/.test(c)) return 'USD';
+  if (/^[A-Z]{1,4}[-\.][A-Z]{1,2}$/.test(c)) return 'USD';
+  return 'CNY';
+}
+
+// 金额换算（原始货币 → 显示货币）
+function toDisp(amount, fromCur) {
+  return amount * rates[fromCur] / rates[displayCur];
+}
+
+// 纯数字格式（不含货币符号），供多币种显示使用
+function fmtN(n) {
+  if (Math.abs(n) >= 10000) return (n / 10000).toFixed(1) + '万';
+  return Number(n).toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:2});
+}
+function fmtD(n) { return CUR_SYM[displayCur] + fmtN(n); }
+function fmtOrig(n, cur) { return CUR_SYM[cur] + fmtN(n); }
+
+// 汇率获取
 async function fetchRates() {
   try {
     const [hkd, usd] = await Promise.all([
@@ -386,190 +357,121 @@ async function fetchRates() {
     ]);
     if (hkd.rate) rates.HKD = hkd.rate;
     if (usd.rate) rates.USD = usd.rate;
-    rates.CNY = 1;
-  } catch(e) {
-    console.warn('汇率获取失败，使用默认值', e);
-    rates = { HKD: 0.92, USD: 7.24, CNY: 1 }; // 兜底汇率
-  }
+  } catch(e) { console.warn('汇率获取失败，使用兜底值'); }
 }
 
-// 将原始价格（按持仓货币）转换到显示货币
-function convertPrice(price, fromCur) {
-  if (fromCur === displayCur) return price;
-  const inCny = price * rates[fromCur]; // 先换成 CNY
-  if (displayCur === 'CNY') return inCny;
-  return inCny / rates[displayCur]; // 再换成目标货币
-}
-
-// 根据股票代码判断原始货币
-function getAssetCurrency(code) {
-  if (!code) return 'CNY';
-  const c = code.trim().toUpperCase();
-  // 港股：末尾 .HK
-  if (/\.HK$/.test(c)) return 'HKD';
-  // 美股：纯字母1-5位（AAPL）、含连字符（BRK-B）、含点但非交易所后缀（BRK.B）
-  if (/^[A-Z]{1,5}$/.test(c)) return 'USD';
-  if (/^[A-Z]{1,4}[\-\.][A-Z]{1,2}$/.test(c)) return 'USD';
-  // 其余（纯数字6位等）→ A股 CNY
-  return 'CNY';
-}
-
-function fmtCur(n) {
-  return CUR_SYMBOL[displayCur] + fmt(n);
-}
-
-// ── 数据库操作 ────────────────────────────────────────
+// 数据库
 async function loadHoldings() {
   const { data, error } = await sb.from('holdings').select('*').order('created_at');
   if (error) { console.error(error); return []; }
-  return data;
+  return data || [];
 }
-
-async function addHolding(entry) {
+async function addHoldingDB(d) {
   const user = await getUser();
   const { error } = await sb.from('holdings').insert({
-    user_id:       user.id,
-    name:          entry.name,
-    code:          entry.code || '',
-    type:          entry.type,
-    shares:        entry.shares,
-    cost_price:    entry.costPrice,
-    current_price: entry.currentPrice,
-    icon:          HTYPE[entry.type]?.icon || '📈',
-    note:          entry.note || '',
+    user_id:user.id, name:d.name, code:d.code||'', type:d.type,
+    shares:d.shares, cost_price:d.costPrice, current_price:d.currentPrice,
+    icon:HTYPE[d.type]?.icon||'📈', note:d.note||'',
   });
-  if (error) { console.error(error); return false; }
-  return true;
+  return !error;
 }
-
-async function updateHolding(id, patch) {
+async function updateHoldingDB(id, patch) {
   const { error } = await sb.from('holdings').update(patch).eq('id', id);
-  if (error) { console.error(error); return false; }
-  return true;
+  return !error;
 }
-
-async function deleteHolding(id) {
+async function deleteHoldingDB(id) {
   const { error } = await sb.from('holdings').delete().eq('id', id);
-  if (error) { console.error(error); return false; }
-  return true;
+  return !error;
 }
 
-// ── 计算 ──────────────────────────────────────────────
-function calcHolding(h) {
-  const assetCur = getAssetCurrency(h.code);
-  const rawMkt   = Number(h.shares) * Number(h.current_price);
-  const rawCost  = Number(h.shares) * Number(h.cost_price);
-  // 先换成 CNY，再换成显示货币
-  const factor   = displayCur === 'CNY' ? 1 : displayCur === 'HKD' ? 1/rates.HKD : 1/rates.USD;
-  const mktVal   = rawMkt  * rates[assetCur] * factor;
-  const cost     = rawCost * rates[assetCur] * factor;
-  const pnl      = mktVal - cost;
-  const pct      = cost > 0 ? (pnl / cost * 100) : 0;
-  return { mktVal, cost, pnl, pct, assetCur };
-}
-
-// ── 渲染汇总 ──────────────────────────────────────────
-function renderSummary(holdings) {
-  // 所有持仓先换算成 CNY
-  let totalMktCny = 0, totalCostCny = 0;
-  holdings.forEach(h => {
-    const cur   = getAssetCurrency(h.code);
-    const mkt   = Number(h.shares) * Number(h.current_price);
-    const cost  = Number(h.shares) * Number(h.cost_price);
-    totalMktCny  += mkt  * rates[cur];
-    totalCostCny += cost * rates[cur];
+// 渲染汇总
+function renderSummary(list) {
+  let mktCny=0, costCny=0;
+  list.forEach(h => {
+    const r = rates[getOriginalCur(h.code)];
+    mktCny  += Number(h.shares) * Number(h.current_price) * r;
+    costCny += Number(h.shares) * Number(h.cost_price)    * r;
   });
+  const mkt  = mktCny  / rates[displayCur];
+  const cost = costCny / rates[displayCur];
+  const pnl  = mkt - cost;
+  const pct  = cost > 0 ? pnl/cost*100 : 0;
+  const cls  = pnl>0?'up':pnl<0?'down':'flat';
+  const sign = pnl>=0?'+':'';
 
-  // 按当前选择的显示货币换算
-  const factor = displayCur === 'CNY' ? 1 : displayCur === 'HKD' ? 1/rates.HKD : 1/rates.USD;
-  const sym    = CUR_SYMBOL[displayCur];
-  const totalMkt  = totalMktCny  * factor;
-  const totalCost = totalCostCny * factor;
-  const totalPnl  = totalMkt - totalCost;
-  const totalPct  = totalCost > 0 ? (totalPnl / totalCost * 100) : 0;
-  const cls       = totalPnl > 0 ? 'up' : totalPnl < 0 ? 'down' : 'flat';
-  const pnlSign   = totalPnl >= 0 ? '+' : '';
-
-  document.getElementById('port-total').textContent = sym + fmt(totalMkt);
-  document.getElementById('port-cost').textContent  = sym + fmt(totalCost);
+  document.getElementById('port-total').textContent = fmtD(mkt);
+  document.getElementById('port-cost').textContent  = fmtD(cost);
   document.getElementById('port-cost').className    = 'ps-val flat';
-  document.getElementById('port-pnl').textContent   = pnlSign + sym + fmt(totalPnl);
-  document.getElementById('port-pnl').className     = 'ps-val ' + cls;
-  document.getElementById('port-pct').textContent   = pnlSign + totalPct.toFixed(2) + '%';
-  document.getElementById('port-pct').className     = 'ps-val ' + cls;
+  document.getElementById('port-pnl').textContent   = sign+fmtD(pnl);
+  document.getElementById('port-pnl').className     = 'ps-val '+cls;
+  document.getElementById('port-pct').textContent   = sign+pct.toFixed(2)+'%';
+  document.getElementById('port-pct').className     = 'ps-val '+cls;
 }
 
-// ── 渲染列表 ──────────────────────────────────────────
-function renderList(holdings) {
-  const listEl = document.getElementById('holdings-list');
-  const filtered = selectedType === 'all'
-    ? holdings
-    : holdings.filter(h => h.type === selectedType);
+// 渲染列表
+function renderList(list) {
+  const el = document.getElementById('holdings-list');
+  const filtered = selectedType==='all' ? list : list.filter(h => h.type===selectedType);
 
-  if (filtered.length === 0) {
-    listEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📭</div>
-        <div class="empty-text">还没有持仓记录<br>点击「添加持仓」开始记录</div>
-      </div>`;
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">还没有持仓记录<br>点击「添加持仓」开始记录</div></div>`;
     return;
   }
 
-  listEl.innerHTML = '';
+  el.innerHTML = '';
   filtered.forEach(h => {
-    const { mktVal, cost, pnl, pct } = calcHolding(h);
-    const cfg = HTYPE[h.type] || HTYPE.other;
-    const cls = pnl > 0 ? 'up' : pnl < 0 ? 'down' : 'flat';
-    const pnlSign = pnl >= 0 ? '+' : '';
+    const origCur = getOriginalCur(h.code);
+    const mktVal  = toDisp(Number(h.shares)*Number(h.current_price), origCur);
+    const costVal = toDisp(Number(h.shares)*Number(h.cost_price),    origCur);
+    const pnl     = mktVal - costVal;
+    const pct     = costVal>0 ? pnl/costVal*100 : 0;
+    const cfg     = HTYPE[h.type]||HTYPE.other;
+    const cls     = pnl>0?'up':pnl<0?'down':'flat';
+    const sign    = pnl>=0?'+':'';
 
     const card = document.createElement('div');
     card.className = 'holding-card';
-    card.dataset.id   = h.id;
-    card.dataset.code = h.code || '';
     card.innerHTML = `
       <div class="hc-top">
         <div class="hc-icon" style="background:${cfg.bg}">${h.icon}</div>
         <div class="hc-info">
           <div class="hc-name">${h.name}</div>
-          <div class="hc-code">${cfg.label}${h.code ? ' · ' + h.code : ''}${h.note ? ' · ' + h.note : ''}<span style="margin-left:4px;opacity:0.5">${getAssetCurrency(h.code)}</span></div>
+          <div class="hc-meta">${cfg.label}${h.code?' · '+h.code:''} <span style="opacity:0.45">${origCur}</span>${h.note?' · '+h.note:''}</div>
         </div>
-        <div class="hc-mktval">
-          <div class="hc-mktval-num" id="mktval-${h.id}">${fmtCur(mktVal)}</div>
-          <div class="hc-pnl ${cls}" id="pnl-${h.id}">${pnlSign}${fmtCur(pnl)} (${pnlSign}${pct.toFixed(2)}%)</div>
+        <div class="hc-right">
+          <div class="hc-mktval-num" id="mv-${h.id}">${fmtD(mktVal)}</div>
+          <div class="hc-pnl ${cls}" id="pl-${h.id}">${sign}${fmtD(pnl)} (${sign}${pct.toFixed(2)}%)</div>
         </div>
       </div>
       <div class="hc-bottom">
-        <div class="hc-detail">
-          <div class="hc-detail-label">持仓数量</div>
-          <div class="hc-detail-val">${Number(h.shares).toLocaleString()}</div>
-        </div>
-        <div class="hc-detail">
-          <div class="hc-detail-label">成本价</div>
-          <div class="hc-detail-val">¥${Number(h.cost_price).toFixed(2)}</div>
-        </div>
-        <div class="hc-detail">
-          <div class="hc-detail-label">现价</div>
-          <div class="hc-detail-val" id="price-${h.id}">¥${Number(h.current_price).toFixed(2)}</div>
-        </div>
-        <div class="hc-detail">
-          <div class="hc-detail-label">持仓成本</div>
-          <div class="hc-detail-val">${fmtCur(cost)}</div>
-        </div>
+        <div class="hc-detail"><div class="hc-detail-label">持仓数量</div><div class="hc-detail-val">${Number(h.shares).toLocaleString()}</div></div>
+        <div class="hc-detail"><div class="hc-detail-label">成本价</div><div class="hc-detail-val">${Number(h.cost_price).toFixed(2)}</div></div>
+        <div class="hc-detail"><div class="hc-detail-label">现价</div><div class="hc-detail-val" id="px-${h.id}">${Number(h.current_price).toFixed(2)}</div></div>
+        <div class="hc-detail"><div class="hc-detail-label">持仓成本</div><div class="hc-detail-val">${fmtOrig(Number(h.shares)*Number(h.cost_price), origCur)}</div></div>
       </div>`;
-
     card.addEventListener('click', () => openEdit(h));
-    listEl.appendChild(card);
+    el.appendChild(card);
   });
 }
 
-// ── 渲染全部 ──────────────────────────────────────────
 async function render() {
   allHoldings = await loadHoldings();
   renderSummary(allHoldings);
   renderList(allHoldings);
 }
 
-// ── 类型 tab ──────────────────────────────────────────
+// 货币切换
+document.querySelectorAll('.cur-sw-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cur-sw-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    displayCur = btn.dataset.cur;
+    renderSummary(allHoldings);
+    renderList(allHoldings);
+  });
+});
+
+// 分类筛选
 document.querySelectorAll('.type-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
@@ -579,80 +481,58 @@ document.querySelectorAll('.type-tab').forEach(btn => {
   });
 });
 
-// ── 持仓类型选择 ──────────────────────────────────────
+// 添加持仓
+document.getElementById('add-btn').addEventListener('click', () => {
+  ['add-name','add-code','add-shares','add-cost','add-price','add-note'].forEach(id =>
+    document.getElementById(id).value = '');
+  document.getElementById('add-modal').classList.add('open');
+});
+document.getElementById('add-modal').addEventListener('click', e => {
+  if (e.target.id==='add-modal') document.getElementById('add-modal').classList.remove('open');
+});
 document.querySelectorAll('#htype-grid .htype-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('#htype-grid .htype-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
-    selectedHType = btn.dataset.type;
+    addHType = btn.dataset.type;
   });
 });
+document.getElementById('add-save-btn').addEventListener('click', async () => {
+  const name   = document.getElementById('add-name').value.trim();
+  const code   = document.getElementById('add-code').value.trim();
+  const shares = parseFloat(document.getElementById('add-shares').value);
+  const cost   = parseFloat(document.getElementById('add-cost').value);
+  const price  = parseFloat(document.getElementById('add-price').value);
+  const note   = document.getElementById('add-note').value.trim();
 
-// ── 添加弹窗 ──────────────────────────────────────────
-document.getElementById('add-btn').addEventListener('click', () => {
-  document.getElementById('input-name').value  = '';
-  document.getElementById('input-code').value  = '';
-  document.getElementById('input-shares').value = '';
-  document.getElementById('input-cost').value  = '';
-  document.getElementById('input-price').value = '';
-  document.getElementById('input-note').value  = '';
-  document.getElementById('modal').classList.add('open');
+  if (!name)                       { alert('请输入持仓名称'); return; }
+  if (isNaN(shares)||shares<0)     { alert('请输入持仓数量'); return; }
+  if (isNaN(cost)  ||cost<0)       { alert('请输入成本价'); return; }
+  if (isNaN(price) ||price<0)      { alert('请输入当前价格'); return; }
+
+  const btn = document.getElementById('add-save-btn');
+  btn.disabled=true; btn.textContent='保存中…';
+  const ok = await addHoldingDB({name,code,type:addHType,shares,costPrice:cost,currentPrice:price,note});
+  btn.disabled=false; btn.textContent='保存持仓';
+  if (ok) { document.getElementById('add-modal').classList.remove('open'); await render(); }
 });
 
-document.getElementById('modal').addEventListener('click', e => {
-  if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open');
-});
-
-document.getElementById('save-btn').addEventListener('click', async () => {
-  const name  = document.getElementById('input-name').value.trim();
-  const shares = parseFloat(document.getElementById('input-shares').value);
-  const cost   = parseFloat(document.getElementById('input-cost').value);
-  const price  = parseFloat(document.getElementById('input-price').value);
-
-  if (!name)               { alert('请输入持仓名称'); return; }
-  if (isNaN(shares) || shares < 0) { alert('请输入持仓数量'); return; }
-  if (isNaN(cost)   || cost < 0)   { alert('请输入成本价'); return; }
-  if (isNaN(price)  || price < 0)  { alert('请输入当前价格'); return; }
-
-  const btn = document.getElementById('save-btn');
-  btn.disabled = true; btn.textContent = '保存中…';
-
-  const ok = await addHolding({
-    name, type: selectedHType,
-    code:  document.getElementById('input-code').value.trim(),
-    note:  document.getElementById('input-note').value.trim(),
-    shares, costPrice: cost, currentPrice: price,
-  });
-
-  btn.disabled = false; btn.textContent = '保存持仓';
-  if (ok) {
-    document.getElementById('modal').classList.remove('open');
-    await render();
-  }
-});
-
-// ── 编辑弹窗 ──────────────────────────────────────────
+// 编辑持仓
 function openEdit(h) {
   document.getElementById('edit-title').textContent = h.name;
-  document.getElementById('edit-code').value   = h.code  || '';
+  document.getElementById('edit-code').value   = h.code||'';
   document.getElementById('edit-shares').value = h.shares;
   document.getElementById('edit-cost').value   = h.cost_price;
   document.getElementById('edit-price').value  = h.current_price;
-  document.getElementById('edit-note').value   = h.note || '';
+  document.getElementById('edit-note').value   = h.note||'';
   document.getElementById('edit-overlay').dataset.id = h.id;
   document.getElementById('edit-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('edit-price').select(), 350);
 }
-
-function closeEdit() {
-  document.getElementById('edit-overlay').classList.remove('open');
-}
-
+function closeEdit() { document.getElementById('edit-overlay').classList.remove('open'); }
 document.getElementById('edit-close').addEventListener('click', closeEdit);
 document.getElementById('edit-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('edit-overlay')) closeEdit();
+  if (e.target.id==='edit-overlay') closeEdit();
 });
-
 document.getElementById('edit-save-btn').addEventListener('click', async () => {
   const id     = document.getElementById('edit-overlay').dataset.id;
   const code   = document.getElementById('edit-code').value.trim();
@@ -661,110 +541,75 @@ document.getElementById('edit-save-btn').addEventListener('click', async () => {
   const price  = parseFloat(document.getElementById('edit-price').value);
   const note   = document.getElementById('edit-note').value.trim();
 
-  if (isNaN(shares) || isNaN(cost) || isNaN(price)) { alert('请填写完整数据'); return; }
-
+  if (isNaN(shares)||isNaN(cost)||isNaN(price)) { alert('请填写完整数据'); return; }
   const btn = document.getElementById('edit-save-btn');
-  btn.disabled = true; btn.textContent = '保存中…';
-
-  // 更新 icon（如果代码变了，同步更新持仓类型图标）
-  const ok = await updateHolding(id, {
-    code, shares, cost_price: cost, current_price: price, note
-  });
-
-  btn.disabled = false; btn.textContent = '保存更新';
+  btn.disabled=true; btn.textContent='保存中…';
+  const ok = await updateHoldingDB(id, {code, shares, cost_price:cost, current_price:price, note});
+  btn.disabled=false; btn.textContent='保存更新';
   if (ok) { closeEdit(); await render(); }
 });
-
 document.getElementById('edit-del-btn').addEventListener('click', async () => {
   if (!confirm('确认删除此持仓？')) return;
-  const id = document.getElementById('edit-overlay').dataset.id;
-  await deleteHolding(id);
-  closeEdit();
-  await render();
+  await deleteHoldingDB(document.getElementById('edit-overlay').dataset.id);
+  closeEdit(); await render();
 });
 
-// ── 实时价格刷新 ──────────────────────────────────────
-async function fetchPrice(symbol) {
-  try {
-    const res = await fetch('/api/price?symbol=' + encodeURIComponent(symbol));
-    if (!res.ok) return null;
-    return await res.json();
-  } catch { return null; }
-}
-
-async function refreshPrices() {
+// 刷新价格
+document.getElementById('refresh-btn').addEventListener('click', async () => {
   const btn    = document.getElementById('refresh-btn');
   const status = document.getElementById('refresh-status');
-  await fetchRates(); // 刷新价格同时更新汇率
-  const withCode = allHoldings.filter(h => h.code && h.code.trim());
+  const list   = allHoldings.filter(h => h.code && h.code.trim());
 
-  if (withCode.length === 0) {
-    status.textContent = '没有填写股票代码的持仓，无法自动更新';
-    return;
+  if (!list.length) { status.textContent='没有填写股票代码的持仓'; return; }
+
+  btn.style.opacity='0.5'; btn.disabled=true;
+  status.textContent='更新中…';
+  await fetchRates();
+
+  let ok=0, fail=0;
+  for (const h of list) {
+    try {
+      const res  = await fetch('/api/price?symbol='+encodeURIComponent(h.code.trim()));
+      const data = await res.json();
+      if (!data||!data.price) { fail++; continue; }
+
+      await updateHoldingDB(h.id, {current_price:data.price});
+
+      const origCur = getOriginalCur(h.code);
+      const newMkt  = toDisp(Number(h.shares)*data.price, origCur);
+      const newCost = toDisp(Number(h.shares)*Number(h.cost_price), origCur);
+      const newPnl  = newMkt-newCost;
+      const newPct  = newCost>0 ? newPnl/newCost*100 : 0;
+      const cls     = newPnl>0?'up':newPnl<0?'down':'flat';
+      const sign    = newPnl>=0?'+':'';
+      const chg     = Number(data.changePct);
+
+      const pxEl = document.getElementById('px-'+h.id);
+      const mvEl = document.getElementById('mv-'+h.id);
+      const plEl = document.getElementById('pl-'+h.id);
+      if (pxEl) {
+        pxEl.textContent = data.price.toFixed(2)+' ('+(chg>=0?'+':'')+chg.toFixed(2)+'%)';
+        pxEl.style.color = data.change>=0?'var(--ok)':'var(--warn)';
+      }
+      if (mvEl) mvEl.textContent = fmtD(newMkt);
+      if (plEl) { plEl.textContent=sign+fmtD(newPnl)+' ('+sign+newPct.toFixed(2)+'%)'; plEl.className='hc-pnl '+cls; }
+      ok++;
+    } catch { fail++; }
   }
 
-  btn.style.opacity = '0.5';
-  btn.disabled = true;
-  status.textContent = '更新中…';
-
-  let updated = 0, failed = 0;
-  for (const h of withCode) {
-    const data = await fetchPrice(h.code.trim());
-    if (!data || !data.price) { failed++; continue; }
-
-    // 更新数据库
-    await updateHolding(h.id, { current_price: data.price });
-
-    // 实时更新 UI（不重新渲染整个列表）
-    const priceEl  = document.getElementById('price-' + h.id);
-    const mktvalEl = document.getElementById('mktval-' + h.id);
-    const pnlEl    = document.getElementById('pnl-' + h.id);
-    if (priceEl) {
-      const newMkt  = Number(h.shares) * data.price;
-      const cost    = Number(h.shares) * Number(h.cost_price);
-      const newPnl  = newMkt - cost;
-      const newPct  = cost > 0 ? (newPnl / cost * 100) : 0;
-      const cls     = newPnl > 0 ? 'up' : newPnl < 0 ? 'down' : 'flat';
-      const sign    = newPnl >= 0 ? '+' : '';
-      const chgTxt  = data.changePct >= 0 ? '+' + data.changePct : data.changePct;
-
-      priceEl.textContent  = '¥' + data.price.toFixed(2) + ' (' + chgTxt + '%)';
-      priceEl.style.color  = data.change >= 0 ? 'var(--ok)' : 'var(--warn)';
-      if (mktvalEl) mktvalEl.textContent = fmt(newMkt);
-      if (pnlEl)    { pnlEl.textContent = sign + fmt(newPnl) + ' (' + sign + newPct.toFixed(2) + '%)'; pnlEl.className = 'hc-pnl ' + cls; }
-      updated++;
-    }
-  }
-
-  // 刷新汇总卡
   allHoldings = await loadHoldings();
   renderSummary(allHoldings);
 
-  const now = new Date();
-  const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-  status.textContent = `已更新 ${updated} 条${failed > 0 ? '，' + failed + ' 条失败' : ''}（${timeStr}）`;
-  btn.style.opacity = '1';
-  btn.disabled = false;
-}
+  const t = new Date();
+  status.textContent = `已更新 ${ok} 条${fail?'，'+fail+' 条失败':''}（${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}）`;
+  btn.style.opacity='1'; btn.disabled=false;
+});
 
-// ── 初始化 ────────────────────────────────────────────
+// 初始化
 async function init() {
   await requireAuth();
-  await fetchRates(); // 预先获取汇率
+  await fetchRates();
   await render();
-
-  // 货币切换按钮
-  document.querySelectorAll('.cur-sw-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.cur-sw-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      displayCur = btn.dataset.cur;
-      renderSummary(allHoldings);
-    });
-  });
-
-
-  document.getElementById('refresh-btn').addEventListener('click', refreshPrices);
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = '';
 }
