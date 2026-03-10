@@ -6,121 +6,253 @@
   <title>财务健康 · 总览</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="base.css">
-  <style>
-    .net-worth-card {
-      margin: 0 24px 20px;
-      background: linear-gradient(135deg, #1a1f14, #141a1a);
-      border-radius: 28px; padding: 28px 24px 22px;
-      border: 1px solid rgba(200,240,80,0.2); position: relative; overflow: hidden;
-    }
-    .net-worth-card::before {
-      content:''; position:absolute; top:-60px; right:-60px;
-      width:200px; height:200px;
-      background:radial-gradient(circle, rgba(200,240,80,0.08) 0%, transparent 70%);
-    }
-    .nw-label { font-size:12px; color:var(--text-muted); margin-bottom:8px; }
-    .nw-amount { font-size:38px; font-weight:800; color:var(--text); letter-spacing:-1px; }
-    .nw-badges { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
-    .nw-badge  {
-      font-size:12px; font-weight:600; padding:4px 12px;
-      border-radius:20px; display:flex; align-items:center; gap:4px;
-    }
-
-    .score-row { display:flex; gap:12px; margin:0 24px 20px; }
-    .score-card {
-      flex:1; background:var(--surface); border-radius:20px;
-      padding:16px; border:1px solid var(--border); position:relative; overflow:hidden;
-    }
-    .score-ring-wrap { position:relative; width:72px; height:72px; margin:0 auto 10px; }
-    .score-ring-wrap svg { width:100%; height:100%; transform:rotate(-90deg); }
-    .score-center {
-      position:absolute; inset:0; display:flex;
-      flex-direction:column; align-items:center; justify-content:center; line-height:1;
-    }
-    .score-num { font-size:22px; font-weight:800; color:var(--text); }
-    .score-sub { font-size:9px; color:var(--text-muted); margin-top:2px; }
-    .score-label { text-align:center; font-size:11px; color:var(--text-muted); }
-
-    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 24px 20px; }
-    .stat-card {
-      background:var(--surface); border-radius:16px;
-      padding:16px; border:1px solid var(--border);
-    }
-    .stat-label { font-size:11px; color:var(--text-muted); margin-bottom:6px; letter-spacing:0.02em; }
-    .stat-val   { font-size:20px; font-weight:700; color:var(--text); }
-
-    .chart-card {
-      margin:0 24px 20px; background:var(--surface);
-      border-radius:20px; padding:18px; border:1px solid var(--border);
-    }
-    .chart-title { font-size:13px; font-weight:600; color:var(--text); margin-bottom:14px; }
-    .pie-wrap { display:flex; align-items:center; gap:16px; }
-    .pie-legend { flex:1; display:flex; flex-direction:column; gap:8px; }
-    .legend-item { display:flex; align-items:center; gap:8px; }
-    .legend-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-    .legend-name { font-size:12px; color:var(--text-muted); flex:1; }
-    .legend-pct  { font-size:12px; font-weight:600; color:var(--text); }
-
-    .trend-card {
-      margin:0 24px 20px; background:var(--surface);
-      border-radius:20px; padding:18px 18px 12px; border:1px solid var(--border);
-    }
-    .trend-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
-    .trend-title  { font-size:12px; color:var(--text-muted); letter-spacing:0.04em; }
-    .trend-delta  { font-size:11px; font-weight:600; padding:3px 8px; border-radius:8px; }
-    .trend-delta.up   { background:rgba(92,240,176,0.12); color:#5cf0b0; }
-    .trend-delta.down { background:rgba(255,107,107,0.12); color:#ff6b6b; }
-    .trend-delta.flat { background:var(--surface2); color:var(--text-muted); }
-    .trend-val-row { display:flex; align-items:baseline; gap:8px; margin-bottom:14px; }
-    .trend-main-val { font-size:24px; font-weight:800; color:var(--text); }
-    .trend-sub-val  { font-size:12px; color:var(--text-muted); }
-    /* 工具提示 */
-    .trend-tooltip {
-      position:absolute; background:var(--surface2); border:1px solid var(--border);
-      border-radius:10px; padding:6px 10px; pointer-events:none;
-      font-size:11px; color:var(--text); white-space:nowrap; z-index:10;
-      transition:opacity 0.15s; opacity:0;
-    }
-    .trend-tooltip.show { opacity:1; }
-    .trend-chart-wrap { position:relative; }
-
-    .user-bar {
-      display:flex; justify-content:space-between; align-items:center;
-      padding:0 24px 16px;
-    }
-    .user-email { font-size:12px; color:var(--text-muted); }
-    .logout-btn {
-      font-size:12px; color:var(--text-muted); background:none; border:none;
-      cursor:pointer; padding:4px 8px; border-radius:8px;
-      font-family:inherit;
-    }
-    .logout-btn:hover { color:var(--warn); }
-
-    .loading-screen {
-      position:fixed; inset:0; background:var(--bg);
-      display:flex; align-items:center; justify-content:center;
-      flex-direction:column; gap:12px; z-index:200;
-    }
-    .loading-screen .spin {
-      width:36px; height:36px; border:3px solid var(--border);
-      border-top-color:var(--accent); border-radius:50%;
-      animation:spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform:rotate(360deg); } }
-    .loading-screen p { font-size:13px; color:var(--text-muted); }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f0f13">
+  <meta name="theme-color" content="#0a0a0e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="财务健康">
   <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    :root {
+      --accent: #c8f050;
+      --accent-dim: rgba(200,240,80,0.1);
+      --ok:   #5cf0b0;
+      --warn: #ff6b6b;
+      --mid:  #f0b84a;
+      --text: #f0f0f8;
+      --text-muted: rgba(240,240,248,0.45);
+      --surface: rgba(255,255,255,0.04);
+      --surface2: #141418;
+      --border: rgba(255,255,255,0.07);
+      --bg: #0a0a0e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      font-family: 'DM Sans', 'PingFang SC', sans-serif;
+      color: var(--text);
+    }
+
+    /* ── 加载屏 ── */
+    .loading-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 14px; z-index: 200;
+    }
+    .loading-logo { font-size: 32px; animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.92)} }
+    .loading-screen p { font-size: 12px; color: var(--text-muted); letter-spacing: 0.08em; }
+
+    /* ── 入场动画 ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: reveal 0.5s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+    @keyframes reveal { to { opacity:1; transform:translateY(0); } }
+    .d1 { animation-delay: 0.05s; }
+    .d2 { animation-delay: 0.12s; }
+    .d3 { animation-delay: 0.19s; }
+    .d4 { animation-delay: 0.26s; }
+    .d5 { animation-delay: 0.33s; }
+
+    /* ── 顶部问候区 ── */
+    .greeting-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 24px 18px;
+    }
+    .greeting-left {}
+    .greeting-time { font-size: 11px; color: var(--text-muted); letter-spacing: 0.06em; margin-bottom: 3px; }
+    .greeting-text { font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
+    .greeting-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-dim), rgba(96,208,240,0.15));
+      border: 1.5px solid rgba(200,240,80,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; cursor: pointer;
+    }
+
+    /* ── 净资产主卡 ── */
+    .hero-card {
+      margin: 0 20px 16px;
+      background: linear-gradient(160deg, #111a0c 0%, #0c1418 60%, #0f0f16 100%);
+      border-radius: 28px;
+      padding: 24px 24px 22px;
+      border: 1px solid rgba(200,240,80,0.15);
+      position: relative; overflow: hidden;
+    }
+    /* 背景光晕 */
+    .hero-card::before {
+      content: '';
+      position: absolute; top: -80px; right: -80px;
+      width: 260px; height: 260px;
+      background: radial-gradient(circle, rgba(200,240,80,0.07) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-card::after {
+      content: '';
+      position: absolute; bottom: -60px; left: -40px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(96,208,240,0.05) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-label {
+      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .hero-label-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--accent); opacity: 0.7;
+      animation: blink 2.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:0.7} 50%{opacity:0.2} }
+    .hero-amount {
+      font-size: 42px; font-weight: 700; color: var(--text);
+      letter-spacing: -1.5px; line-height: 1;
+      font-family: 'DM Mono', monospace;
+      margin-bottom: 16px;
+    }
+    .hero-amount span { font-size: 24px; opacity: 0.7; margin-right: 2px; }
+    .hero-badges { display: flex; gap: 7px; flex-wrap: wrap; }
+    .hero-badge {
+      font-size: 11px; font-weight: 500; padding: 4px 10px;
+      border-radius: 20px; display: flex; align-items: center; gap: 4px;
+      letter-spacing: 0.02em;
+    }
+    .hero-badge.up   { background: rgba(92,240,176,0.1);  color: var(--ok); }
+    .hero-badge.down { background: rgba(255,107,107,0.1); color: var(--warn); }
+    .hero-badge.flat { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+    .hero-badge.debt-ok   { background: rgba(200,240,80,0.1); color: var(--accent); }
+    .hero-badge.debt-warn { background: rgba(255,107,107,0.1); color: var(--warn); }
+
+    /* ── 快捷入口行 ── */
+    .quick-links {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 8px; padding: 0 20px 18px;
+    }
+    .quick-link {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 6px 10px;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.12s;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .quick-link:active { transform: scale(0.94); }
+    .quick-link:hover  { border-color: rgba(200,240,80,0.3); background: rgba(200,240,80,0.05); }
+    .ql-icon { font-size: 20px; line-height: 1; }
+    .ql-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.02em; font-weight: 500; }
+
+    /* ── 健康分 + 统计 横排 ── */
+    .metrics-row {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: 10px; padding: 0 20px 14px; align-items: stretch;
+    }
+    /* 健康分环 */
+    .score-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; padding: 16px 18px;
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+      min-width: 100px;
+    }
+    .score-ring-wrap { position: relative; width: 76px; height: 76px; }
+    .score-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .score-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .score-num { font-size: 24px; font-weight: 700; font-family: 'DM Mono', monospace; }
+    .score-sub-label {
+      font-size: 10px; color: var(--text-muted); margin-top: 8px;
+      letter-spacing: 0.04em; text-align: center; white-space: nowrap;
+    }
+    /* 右侧统计格 */
+    .stats-grid {
+      display: grid; grid-template-rows: 1fr 1fr;
+      gap: 10px;
+    }
+    .stat-tile {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+    }
+    .stat-tile-label { font-size: 11px; color: var(--text-muted); }
+    .stat-tile-val   { font-size: 18px; font-weight: 700; font-family: 'DM Mono', monospace; }
+
+    /* ── 分区标题 ── */
+    .section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 24px 10px;
+    }
+    .section-title { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .section-link  { font-size: 11px; color: var(--accent); opacity: 0.8; text-decoration: none; }
+
+    /* ── 资产分布卡 ── */
+    .dist-card {
+      margin: 0 20px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; padding: 18px 20px;
+    }
+    .pie-wrap { display: flex; align-items: center; gap: 18px; }
+    .pie-legend { flex: 1; display: flex; flex-direction: column; gap: 9px; }
+    .legend-item { display: flex; align-items: center; gap: 9px; }
+    .legend-bar-wrap { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+    .legend-bar { height: 100%; border-radius: 2px; transition: width 0.8s cubic-bezier(0.22,1,0.36,1); }
+    .legend-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .legend-name { font-size: 11px; color: var(--text-muted); min-width: 48px; }
+    .legend-amt  { font-size: 11px; font-weight: 600; color: var(--text); font-family: 'DM Mono', monospace; white-space: nowrap; }
+
+    /* ── 趋势卡 ── */
+    .trend-card {
+      margin: 0 20px 20px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; padding: 18px 20px 14px;
+    }
+    .trend-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
+    .trend-top-left {}
+    .trend-period { font-size: 10px; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+    .trend-val { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; font-family: 'DM Mono', monospace; }
+    .trend-badge {
+      font-size: 11px; font-weight: 600; padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .trend-badge.up   { background: rgba(92,240,176,0.12);  color: var(--ok); }
+    .trend-badge.down { background: rgba(255,107,107,0.12); color: var(--warn); }
+    .trend-badge.flat { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+    .trend-chart-wrap { position: relative; }
+    .trend-tooltip {
+      position: absolute; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 7px 11px; pointer-events: none;
+      font-size: 11px; color: var(--text); white-space: nowrap; z-index: 10;
+      transition: opacity 0.15s; opacity: 0; line-height: 1.6;
+    }
+    .trend-tooltip.show { opacity: 1; }
+
+    /* 登出 */
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+    .logout-btn {
+      font-size: 11px; color: var(--text-muted); background: none; border: none;
+      cursor: pointer; padding: 4px 8px; border-radius: 8px; font-family: inherit;
+      opacity: 0.6; transition: opacity 0.15s, color 0.15s;
+    }
+    .logout-btn:hover { opacity: 1; color: var(--warn); }
+  </style>
 </head>
 <body>
 
 <div class="loading-screen" id="loading">
-  <div class="spin"></div>
+  <div class="loading-logo">💹</div>
   <p>加载中…</p>
 </div>
 
@@ -128,123 +260,186 @@
   <div class="status-bar">
     <span class="status-time" id="clock">9:41</span>
     <div class="status-icons">
-      <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12">
+        <rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/>
+        <rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/>
+        <rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/>
+      </svg>
     </div>
   </div>
 
   <div class="screen-content">
-    <div class="user-bar">
-      <span class="user-email" id="user-email"></span>
-      <button class="logout-btn" id="logout-btn">退出</button>
-    </div>
 
-    <!-- 净资产卡 -->
-    <div class="net-worth-card">
-      <div class="nw-label">💼 净资产</div>
-      <div class="nw-amount" id="nw-amount">—</div>
-      <div class="nw-badges">
-        <div class="nw-badge" id="nw-change-badge" style="display:none"></div>
-        <div class="nw-badge" id="nw-debt-badge"   style="display:none"></div>
+    <!-- 问候栏 -->
+    <div class="greeting-bar reveal d1">
+      <div class="greeting-left">
+        <div class="greeting-time" id="greeting-time"></div>
+        <div class="greeting-text" id="greeting-text"></div>
+      </div>
+      <div class="topbar-right">
+        <button class="logout-btn" id="logout-btn">退出</button>
+        <div class="greeting-avatar" id="user-avatar">👤</div>
       </div>
     </div>
 
-    <!-- 健康分 & 快速统计 -->
-    <div class="score-row">
-      <div class="score-card">
+    <!-- 净资产英雄卡 -->
+    <div class="hero-card reveal d2">
+      <div class="hero-label">
+        <span class="hero-label-dot"></span>
+        净资产
+      </div>
+      <div class="hero-amount" id="nw-amount">
+        <span>¥</span>—
+      </div>
+      <div class="hero-badges" id="hero-badges"></div>
+    </div>
+
+    <!-- 快捷入口 -->
+    <div class="quick-links reveal d3">
+      <a class="quick-link" href="assets.html">
+        <div class="ql-icon">🏦</div>
+        <div class="ql-label">资产</div>
+      </a>
+      <a class="quick-link" href="cashflow.html">
+        <div class="ql-icon">💸</div>
+        <div class="ql-label">收支</div>
+      </a>
+      <a class="quick-link" href="investment.html">
+        <div class="ql-icon">📊</div>
+        <div class="ql-label">持仓</div>
+      </a>
+      <a class="quick-link" href="goals.html">
+        <div class="ql-icon">🎯</div>
+        <div class="ql-label">目标</div>
+      </a>
+    </div>
+
+    <!-- 健康分 + 快速统计 -->
+    <div class="metrics-row reveal d3">
+      <!-- 健康分环 -->
+      <div class="score-block">
         <div class="score-ring-wrap">
-          <svg viewBox="0 0 72 72">
-            <circle fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6" cx="36" cy="36" r="28"/>
+          <svg viewBox="0 0 76 76">
+            <circle fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6" cx="38" cy="38" r="30"/>
             <circle fill="none" stroke="var(--accent)" stroke-width="6" stroke-linecap="round"
-              cx="36" cy="36" r="28"
+              cx="38" cy="38" r="30"
               id="score-circle"
-              stroke-dasharray="175.9"
-              stroke-dashoffset="175.9"/>
+              stroke-dasharray="188.5"
+              stroke-dashoffset="188.5"
+              style="transition:stroke-dashoffset 1.2s cubic-bezier(0.22,1,0.36,1) 0.4s"/>
           </svg>
           <div class="score-center">
             <span class="score-num" id="score-num">—</span>
-            <span class="score-sub">/100</span>
           </div>
         </div>
-        <div class="score-label">财务健康分</div>
+        <div class="score-sub-label">健康评分</div>
       </div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:10px">
-        <div class="stat-card" style="background:#18181f;border:1px solid rgba(255,255,255,0.08)">
-          <div class="stat-label">负债率</div>
-          <div class="stat-val" id="debt-ratio" style="color:var(--text)">—</div>
+
+      <!-- 右侧两格统计 -->
+      <div class="stats-grid">
+        <div class="stat-tile">
+          <span class="stat-tile-label">负债率</span>
+          <span class="stat-tile-val" id="debt-ratio" style="color:var(--text)">—</span>
         </div>
-        <div class="stat-card" style="background:#18181f;border:1px solid rgba(255,255,255,0.08)">
-          <div class="stat-label">资产项目</div>
-          <div class="stat-val" id="asset-count" style="color:var(--text)">—</div>
+        <div class="stat-tile">
+          <span class="stat-tile-label">资产项目</span>
+          <span class="stat-tile-val" id="asset-count" style="color:var(--text)">—</span>
         </div>
       </div>
     </div>
 
-    <!-- 资产分布饼图 -->
-    <div class="chart-card">
-      <div class="chart-title">资产分布</div>
-      <div class="pie-wrap" id="pie-wrap">
-        <div style="color:var(--text-muted);font-size:13px">去资产页添加你的资产</div>
+    <!-- 资产分布 -->
+    <div class="reveal d4">
+      <div class="section-header">
+        <span class="section-title">资产分布</span>
+        <a class="section-link" href="assets.html">详情 →</a>
+      </div>
+      <div class="dist-card">
+        <div class="pie-wrap" id="pie-wrap">
+          <div style="color:var(--text-muted);font-size:12px;line-height:1.7;padding:8px 0">
+            去资产页<br>添加你的资产
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- 净资产趋势 -->
-    <div class="trend-card">
-      <div class="trend-header">
-        <span class="trend-title">净资产趋势</span>
-        <span class="trend-delta" id="trend-delta"></span>
+    <div class="reveal d5">
+      <div class="section-header">
+        <span class="section-title">净资产趋势</span>
       </div>
-      <div class="trend-val-row">
-        <span class="trend-main-val" id="trend-latest"></span>
-        <span class="trend-sub-val" id="trend-period"></span>
-      </div>
-      <div class="trend-chart-wrap">
-        <div class="trend-tooltip" id="trend-tooltip"></div>
-        <div id="trend-chart"></div>
+      <div class="trend-card">
+        <div class="trend-top">
+          <div class="trend-top-left">
+            <div class="trend-period" id="trend-period"></div>
+            <div class="trend-val" id="trend-latest"></div>
+          </div>
+          <span class="trend-badge" id="trend-badge"></span>
+        </div>
+        <div class="trend-chart-wrap">
+          <div class="trend-tooltip" id="trend-tooltip"></div>
+          <div id="trend-chart"></div>
+        </div>
       </div>
     </div>
 
-  </div>
+  </div><!-- /screen-content -->
 
   <nav class="nav-bar">
     <a href="index.html" class="nav-item active">
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="10" width="8" height="10" rx="2" fill="currentColor"/><rect x="12" y="2" width="8" height="18" rx="2" fill="currentColor" opacity="0.6"/></svg>
       <span>总览</span>
     </a>
-    <a href="assets.html" class="nav-item ">
+    <a href="assets.html" class="nav-item">
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="9" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="7" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
       <span>资产</span>
     </a>
-    <a href="cashflow.html" class="nav-item ">
+    <a href="cashflow.html" class="nav-item">
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M4 7l4-4 4 4M18 15l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>收支</span>
     </a>
-    <a href="diagnosis.html" class="nav-item ">
+    <a href="diagnosis.html" class="nav-item">
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 6v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <span>诊断</span>
     </a>
-    <a href="goals.html" class="nav-item ">
+    <a href="goals.html" class="nav-item">
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="4" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="1.5" fill="currentColor"/></svg>
       <span>目标</span>
     </a>
   </nav>
-</div>
+</div><!-- /phone -->
 
 <script src="js/finance.js"></script>
 <script src="supabase.js"></script>
 <script>
-// 时钟
+// ── 时钟 ──────────────────────────────────────────────
 function updateClock() {
-  const now = new Date();
+  const n = new Date();
   document.getElementById('clock').textContent =
-    now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+    n.getHours() + ':' + String(n.getMinutes()).padStart(2, '0');
 }
 updateClock(); setInterval(updateClock, 10000);
 
+// ── 问候语 ────────────────────────────────────────────
+function initGreeting(email) {
+  const h = new Date().getHours();
+  const greet = h < 6  ? '夜深了' :
+                h < 11 ? '早上好' :
+                h < 13 ? '中午好' :
+                h < 18 ? '下午好' : '晚上好';
+  const dateStr = new Date().toLocaleDateString('zh-CN', { month:'long', day:'numeric', weekday:'short' });
+  document.getElementById('greeting-time').textContent = dateStr;
+  document.getElementById('greeting-text').textContent = greet + ' 👋';
+  // 用邮箱首字母做头像
+  if (email) document.getElementById('user-avatar').textContent = email[0].toUpperCase();
+}
+
+// ── 主渲染 ────────────────────────────────────────────
 async function render() {
   const user = await requireAuth();
   if (!user) return;
 
-  document.getElementById('user-email').textContent = user.email;
+  initGreeting(user.email);
   document.getElementById('logout-btn').addEventListener('click', signOut);
 
   const [assets, history] = await Promise.all([dbLoadAssets(), dbLoadHistory()]);
@@ -252,263 +447,250 @@ async function render() {
   const { byType, totalAssets, totalDebt, netWorth, debtRatio } = stats;
 
   // 净资产
-  document.getElementById('nw-amount').textContent = fmt(netWorth);
+  const amtEl = document.getElementById('nw-amount');
+  amtEl.innerHTML = `<span>¥</span>${fmtFull(netWorth).replace('¥ ', '')}`;
 
-  // 变化徽章
+  // 徽章
+  const badgesEl = document.getElementById('hero-badges');
   if (history.length >= 2) {
     const prev = history[history.length - 2].netWorth;
     const diff = netWorth - prev;
     const pct  = prev > 0 ? ((diff / prev) * 100).toFixed(1) : 0;
-    const badge = document.getElementById('nw-change-badge');
-    badge.style.display = 'flex';
-    badge.style.background = diff >= 0 ? 'rgba(92,240,176,0.12)' : 'rgba(255,107,107,0.1)';
-    badge.style.color = diff >= 0 ? 'var(--ok)' : 'var(--warn)';
-    badge.textContent = (diff >= 0 ? '↑ +' : '↓ ') + fmt(diff) + ' (' + pct + '%)';
+    const cls  = diff >= 0 ? 'up' : 'down';
+    const icon = diff >= 0 ? '↑' : '↓';
+    badgesEl.innerHTML += `<div class="hero-badge ${cls}">${icon} ${diff >= 0 ? '+' : ''}${fmt(diff)} (${pct}%)</div>`;
   }
   if (parseFloat(debtRatio) > 0) {
-    const db = document.getElementById('nw-debt-badge');
-    db.style.display = 'flex';
     const high = parseFloat(debtRatio) > 40;
-    db.style.background = high ? 'rgba(255,107,107,0.1)' : 'rgba(200,240,80,0.1)';
-    db.style.color = high ? 'var(--warn)' : 'var(--accent)';
-    db.textContent = '负债率 ' + debtRatio + '%';
+    badgesEl.innerHTML += `<div class="hero-badge ${high ? 'debt-warn' : 'debt-ok'}">负债率 ${debtRatio}%</div>`;
   }
 
   // 健康分
   const dr = parseFloat(debtRatio);
-  const debtScore = dr === 0 ? 100 : dr <= 30 ? 80 : dr <= 50 ? 55 : 30;
-  const typeCount = ['cash','investment','fixed'].filter(t => byType[t] > 0).length;
+  const debtScore     = dr === 0 ? 100 : dr <= 30 ? 80 : dr <= 50 ? 55 : 30;
+  const typeCount     = ['cash','investment','fixed'].filter(t => byType[t] > 0).length;
   const diversityScore = typeCount * 33;
-  const cashScore = totalAssets > 0 ? Math.min(100, (byType.cash / totalAssets) * 300) : 0;
-  const score = Math.round(debtScore * 0.5 + diversityScore * 0.3 + cashScore * 0.2);
+  const cashScore     = totalAssets > 0 ? Math.min(100, (byType.cash / totalAssets) * 300) : 0;
+  const score         = Math.round(debtScore * 0.5 + diversityScore * 0.3 + cashScore * 0.2);
   document.getElementById('score-num').textContent = score;
-  const circumference = 2 * Math.PI * 28;
+  // 根据分数着色
+  const scoreColor = score >= 70 ? 'var(--ok)' : score >= 45 ? 'var(--mid)' : 'var(--warn)';
+  document.getElementById('score-num').style.color = scoreColor;
+  document.getElementById('score-circle').style.stroke = scoreColor;
+  const circumference = 2 * Math.PI * 30;
   document.getElementById('score-circle').style.strokeDashoffset =
     (circumference * (1 - score / 100)).toFixed(1);
 
-  // 快速统计
+  // 统计格
   const drEl = document.getElementById('debt-ratio');
   drEl.textContent = debtRatio + '%';
   drEl.style.color = parseFloat(debtRatio) > 50 ? 'var(--warn)' : parseFloat(debtRatio) > 30 ? 'var(--mid)' : 'var(--ok)';
-  document.getElementById('asset-count').textContent = assets.length + ' 项';
+  document.getElementById('asset-count').textContent = assets.length;
 
   // 饼图
-  renderPie(byType, totalAssets);
+  renderDist(byType, totalAssets);
 
-  // 趋势图
+  // 趋势
   renderTrend(history, netWorth);
 
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = '';
 }
 
-function renderPie(byType, totalAssets) {
+// ── 资产分布（横条图 + 甜甜圈） ──────────────────────
+function renderDist(byType, totalAssets) {
   const wrap = document.getElementById('pie-wrap');
   const types = [
     { key:'cash',       label:'现金存款', color:'#5cf0b0' },
-    { key:'investment', label:'投资资产', color:'#60d0f0' },
-    { key:'fixed',      label:'固定资产', color:'#c8f050' },
+    { key:'investment', label:'投资资产', color:'#c8f050' },
+    { key:'fixed',      label:'固定资产', color:'#60d0f0' },
     { key:'debt',       label:'负债',     color:'#ff6b6b' },
   ].filter(t => byType[t.key] > 0);
 
-  if (types.length === 0) {
-    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:13px">去资产页添加你的资产</div>';
+  if (!types.length) {
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:12px;line-height:1.7;padding:8px 0">去资产页<br>添加你的资产</div>';
     return;
   }
 
   const total = types.reduce((s, t) => s + byType[t.key], 0);
-  const cx = 60, cy = 60, r = 46, ri = 28;
-  let angle = -Math.PI / 2;
-  let paths = '';
 
+  // 甜甜圈 SVG
+  const cx=52, cy=52, r=40, ri=24;
+  let angle = -Math.PI / 2, paths = '';
   types.forEach(t => {
     const slice = (byType[t.key] / total) * Math.PI * 2;
-    const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
-    angle += slice - 0.03;
-    const x2 = cx + r * Math.cos(angle), y2 = cy + r * Math.sin(angle);
-    angle += 0.03;
-    const xi1 = cx + ri * Math.cos(angle - slice + 0.03);
-    const yi1 = cy + ri * Math.sin(angle - slice + 0.03);
-    const xi2 = cx + ri * Math.cos(angle), yi2 = cy + ri * Math.sin(angle);
+    const x1 = cx + r*Math.cos(angle), y1 = cy + r*Math.sin(angle);
+    const a2  = angle + slice - 0.04;
+    const x2 = cx + r*Math.cos(a2),  y2 = cy + r*Math.sin(a2);
+    const xi1= cx + ri*Math.cos(angle + 0.04), yi1= cy + ri*Math.sin(angle + 0.04);
+    const xi2= cx + ri*Math.cos(a2),           yi2= cy + ri*Math.sin(a2);
     const large = slice > Math.PI ? 1 : 0;
-    paths += `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${xi2.toFixed(1)},${yi2.toFixed(1)} A${ri},${ri} 0 ${large},0 ${xi1.toFixed(1)},${yi1.toFixed(1)} Z" fill="${t.color}"/>`;
+    paths += `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${xi2.toFixed(1)},${yi2.toFixed(1)} A${ri},${ri} 0 ${large},0 ${xi1.toFixed(1)},${yi1.toFixed(1)} Z" fill="${t.color}" opacity="0.9"/>`;
+    angle += slice;
   });
+  const nw = Object.values(byType).reduce((a,b) => a+b, 0) - byType.debt * 2;
 
-  const nw = Object.values(byType).reduce((a,b)=>a+b,0) - byType.debt*2;
-  let legend = types.map(t => `
+  // 图例 + 横条
+  let legend = types.map(t => {
+    const pct = (byType[t.key] / total * 100).toFixed(0);
+    return `
     <div class="legend-item">
       <div class="legend-dot" style="background:${t.color}"></div>
       <span class="legend-name">${t.label}</span>
-      <span class="legend-pct">${(byType[t.key]/total*100).toFixed(0)}%</span>
-    </div>`).join('');
+      <div class="legend-bar-wrap">
+        <div class="legend-bar" style="width:${pct}%;background:${t.color};opacity:0.6"></div>
+      </div>
+      <span class="legend-amt">${fmt(byType[t.key])}</span>
+    </div>`;
+  }).join('');
 
   wrap.innerHTML = `
-    <svg width="120" height="120" viewBox="0 0 120 120">${paths}
-      <text x="60" y="56" text-anchor="middle" fill="#f0f0f8" font-size="9" font-family="sans-serif" opacity="0.5">净资产</text>
-      <text x="60" y="70" text-anchor="middle" fill="#f0f0f8" font-size="11" font-weight="bold" font-family="sans-serif">${fmt(nw)}</text>
+    <svg width="104" height="104" viewBox="0 0 104 104" style="flex-shrink:0">
+      ${paths}
+      <text x="52" y="48" text-anchor="middle" fill="rgba(240,240,248,0.4)" font-size="8" font-family="DM Sans,sans-serif" letter-spacing="0.06em">净资产</text>
+      <text x="52" y="62" text-anchor="middle" fill="#f0f0f8" font-size="10" font-weight="600" font-family="DM Mono,monospace">${fmt(nw)}</text>
     </svg>
     <div class="pie-legend">${legend}</div>`;
 }
 
+// ── 趋势折线图 ────────────────────────────────────────
 function renderTrend(history, netWorth) {
   const el      = document.getElementById('trend-chart');
   const valEl   = document.getElementById('trend-latest');
-  const deltaEl = document.getElementById('trend-delta');
+  const badgeEl = document.getElementById('trend-badge');
   const periodEl= document.getElementById('trend-period');
   const tooltip = document.getElementById('trend-tooltip');
 
-  // 补充当前快照（如果最新记录不是今天）
-  const allHistory = [...history];
-  const todayLabel = new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}).replace('/','/');
-  if (allHistory.length === 0 || allHistory[allHistory.length-1].netWorth !== netWorth) {
-    allHistory.push({ date: todayLabel, netWorth });
+  const allH = [...history];
+  const todayLabel = new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'});
+  if (!allH.length || allH[allH.length-1].netWorth !== netWorth) {
+    allH.push({ date: todayLabel, netWorth });
   }
 
-  if (allHistory.length < 2) {
-    valEl.textContent = fmt(netWorth);
-    deltaEl.className = 'trend-delta flat';
-    deltaEl.textContent = '数据积累中';
+  valEl.textContent = fmt(netWorth);
+
+  if (allH.length < 2) {
+    badgeEl.className = 'trend-badge flat'; badgeEl.textContent = '数据积累中';
     periodEl.textContent = '';
-    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:28px 0;line-height:1.8">每次在「资产」页面更新数据后<br>这里会自动生成趋势图 📈</div>';
+    el.innerHTML = `<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:26px 0;line-height:1.9;opacity:0.7">
+      每次在「资产」页更新数据<br>这里会自动生成趋势图 📈</div>`;
     return;
   }
 
-  const vals  = allHistory.map(h => h.netWorth);
-  const dates = allHistory.map(h => h.date);
-  const latest = vals[vals.length - 1];
-  const first  = vals[0];
-  const prev   = vals[vals.length - 2]; // 上一个数据点（用于点击提示）
-  const diff   = latest - first; // 对比最早一条，显示整体涨跌
-  const pct    = first !== 0 ? (diff / Math.abs(first) * 100) : 0;
+  const vals  = allH.map(h => h.netWorth);
+  const dates = allH.map(h => h.date);
+  const diff  = vals[vals.length-1] - vals[0];
+  const pct   = vals[0] !== 0 ? (diff / Math.abs(vals[0]) * 100) : 0;
 
-  // 顶部数值
-  valEl.textContent = fmt(latest);
-  periodEl.textContent = dates[0] + ' — ' + dates[dates.length - 1];
-
-  // 涨跌标签
+  periodEl.textContent = dates[0] + ' — ' + dates[dates.length-1];
   if (diff > 0) {
-    deltaEl.className = 'trend-delta up';
-    deltaEl.textContent = '+' + fmt(diff) + '  ▲' + Math.abs(pct).toFixed(1) + '%';
+    badgeEl.className = 'trend-badge up';
+    badgeEl.textContent = '+' + fmt(diff) + '  ▲' + Math.abs(pct).toFixed(1) + '%';
   } else if (diff < 0) {
-    deltaEl.className = 'trend-delta down';
-    deltaEl.textContent = fmt(diff) + '  ▼' + Math.abs(pct).toFixed(1) + '%';
+    badgeEl.className = 'trend-badge down';
+    badgeEl.textContent = fmt(diff) + '  ▼' + Math.abs(pct).toFixed(1) + '%';
   } else {
-    deltaEl.className = 'trend-delta flat';
-    deltaEl.textContent = '持平';
+    badgeEl.className = 'trend-badge flat'; badgeEl.textContent = '持平';
   }
 
-  // SVG 参数
-  const W = 327, H = 110, PL = 4, PR = 4, PT = 8, PB = 22;
-  const CW = W - PL - PR, CH = H - PT - PB;
-  const minV = Math.min(...vals), maxV = Math.max(...vals);
-  const range = maxV - minV || maxV * 0.1 || 1;
+  const W=327, H=100, PL=4, PR=4, PT=6, PB=20;
+  const CW=W-PL-PR, CH=H-PT-PB;
+  const minV=Math.min(...vals), maxV=Math.max(...vals);
+  const range = maxV-minV || maxV*0.1 || 1;
+  const xOf = i => PL + (i/(vals.length-1)) * CW;
+  const yOf = v => PT + (1-(v-minV)/range) * CH;
 
-  function xOf(i) { return PL + (i / (vals.length - 1)) * CW; }
-  function yOf(v) { return PT + (1 - (v - minV) / range) * CH; }
-
-  // 生成平滑曲线（贝塞尔）
-  const points = vals.map((v, i) => ({ x: xOf(i), y: yOf(v) }));
-  let pathD = `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
-  for (let i = 1; i < points.length; i++) {
-    const prev2 = points[i-1], cur = points[i];
-    const cpx = (prev2.x + cur.x) / 2;
-    pathD += ` C${cpx.toFixed(1)},${prev2.y.toFixed(1)} ${cpx.toFixed(1)},${cur.y.toFixed(1)} ${cur.x.toFixed(1)},${cur.y.toFixed(1)}`;
+  const pts = vals.map((v,i) => ({x:xOf(i), y:yOf(v)}));
+  let pathD = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i=1; i<pts.length; i++) {
+    const p=pts[i-1], c=pts[i], cx2=(p.x+c.x)/2;
+    pathD += ` C${cx2.toFixed(1)},${p.y.toFixed(1)} ${cx2.toFixed(1)},${c.y.toFixed(1)} ${c.x.toFixed(1)},${c.y.toFixed(1)}`;
   }
+  const lp = pts[pts.length-1];
+  const areaD = pathD + ` L${lp.x.toFixed(1)},${(PT+CH).toFixed(1)} L${PL},${(PT+CH).toFixed(1)} Z`;
 
-  // 填充区域
-  const lastP = points[points.length - 1];
-  const areaD = pathD + ` L${lastP.x.toFixed(1)},${(PT+CH).toFixed(1)} L${PL},${(PT+CH).toFixed(1)} Z`;
-
-  // 日期标签（最多5个）
-  const maxShow = 5;
-  const step = Math.max(1, Math.ceil(dates.length / maxShow));
-  const labels = dates.map((d, i) => {
-    if (i % step !== 0 && i !== dates.length - 1) return '';
-    const x = xOf(i);
-    return `<text x="${x.toFixed(1)}" y="${H}" text-anchor="${i===0?'start':i===dates.length-1?'end':'middle'}" fill="rgba(240,240,248,0.3)" font-size="9.5" font-family="sans-serif">${d}</text>`;
+  // 日期标签
+  const maxShow=4, step=Math.max(1,Math.ceil(dates.length/maxShow));
+  const labels = dates.map((d,i) => {
+    if (i%step!==0 && i!==dates.length-1) return '';
+    const anchor = i===0?'start':i===dates.length-1?'end':'middle';
+    return `<text x="${xOf(i).toFixed(1)}" y="${H}" text-anchor="${anchor}" fill="rgba(240,240,248,0.25)" font-size="9" font-family="DM Sans,sans-serif">${d}</text>`;
   }).join('');
 
-  // 数值标签（最高点和最低点）
-  const maxIdx = vals.indexOf(maxV), minIdx = vals.indexOf(minV);
-  const valLabels = [maxIdx, minIdx].filter((v,i,a) => a.indexOf(v) === i).map(i => {
-    const x = xOf(i), y = yOf(vals[i]);
-    const anchor = i === 0 ? 'start' : i === vals.length - 1 ? 'end' : 'middle';
-    const dy = i === maxIdx ? -8 : 14;
-    return `<text x="${x.toFixed(1)}" y="${(y+dy).toFixed(1)}" text-anchor="${anchor}" fill="rgba(200,240,80,0.6)" font-size="9" font-family="sans-serif" font-weight="600">${fmt(vals[i])}</text>`;
+  // 高低点标注
+  const maxIdx=vals.indexOf(maxV), minIdx=vals.indexOf(minV);
+  const valLabels = [maxIdx, minIdx].filter((v,i,a)=>a.indexOf(v)===i).map(i => {
+    const x=xOf(i), y=yOf(vals[i]);
+    const anchor = i===0?'start':i===vals.length-1?'end':'middle';
+    const dy = i===maxIdx ? -8 : 14;
+    return `<text x="${x.toFixed(1)}" y="${(y+dy).toFixed(1)}" text-anchor="${anchor}" fill="rgba(200,240,80,0.55)" font-size="8.5" font-family="DM Mono,monospace">${fmt(vals[i])}</text>`;
   }).join('');
 
   // 数据点
-  const dots = points.map((p, i) =>
-    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${i===points.length-1?4.5:2.5}"
-      fill="${i===points.length-1?'var(--accent)':'rgba(200,240,80,0.4)'}"
-      stroke="${i===points.length-1?'rgba(0,0,0,0.3)':'none'}" stroke-width="1.5"
-      class="trend-dot" data-i="${i}"/>`
-  ).join('');
+  const dots = pts.map((p,i) => {
+    const isLast = i===pts.length-1;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast?4:2.5}"
+      fill="${isLast?'var(--accent)':'rgba(200,240,80,0.35)'}"
+      stroke="${isLast?'rgba(0,0,0,0.4)':'none'}" stroke-width="1.5"
+      class="tdot" data-i="${i}" style="cursor:pointer"/>`;
+  }).join('');
 
-  // 水平参考线
-  const gridLines = [0.25, 0.5, 0.75].map(p => {
-    const y = PT + p * CH;
-    const v = maxV - p * range;
-    return `<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4,4"/>`;
+  // 参考线
+  const gridLines = [0.33,0.66].map(p => {
+    const y = PT + p*CH;
+    return `<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`;
   }).join('');
 
   const lineColor = diff >= 0 ? 'var(--accent)' : '#ff6b6b';
-  const gradStop  = diff >= 0 ? 'rgba(200,240,80,' : 'rgba(255,107,107,';
 
   el.innerHTML = `
     <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="overflow:visible">
       <defs>
-        <linearGradient id="tg2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.2"/>
+        <linearGradient id="tgrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.18"/>
           <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
         </linearGradient>
-        <clipPath id="clip-trend"><rect x="${PL}" y="${PT}" width="${CW}" height="${CH+2}"/></clipPath>
+        <clipPath id="clipt"><rect x="${PL}" y="${PT}" width="${CW}" height="${CH+2}"/></clipPath>
       </defs>
       ${gridLines}
-      <g clip-path="url(#clip-trend)">
-        <path d="${areaD}" fill="url(#tg2)"/>
-        <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <g clip-path="url(#clipt)">
+        <path d="${areaD}" fill="url(#tgrad)"/>
+        <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
       ${valLabels}
       ${dots}
       ${labels}
     </svg>`;
 
-  // 点击/悬停提示
-  el.querySelectorAll('.trend-dot').forEach(dot => {
-    const handler = (e) => {
+  el.querySelectorAll('.tdot').forEach(dot => {
+    const on = e => {
       e.stopPropagation();
       const i = parseInt(dot.dataset.i);
-      const prev3 = i > 0 ? vals[i-1] : null;
-      const d3 = vals[i] - (prev3 ?? vals[i]);
-      const sign = d3 >= 0 ? '+' : '';
-      tooltip.innerHTML = `<strong>${dates[i]}</strong><br>${fmt(vals[i])}${prev3!==null ? '<br><span style="color:'+(d3>=0?'#5cf0b0':'#ff6b6b')+'">'+sign+fmt(d3)+'</span>' : ''}`;
-      // 定位
-      const rect = el.getBoundingClientRect();
-      const cx   = parseFloat(dot.getAttribute('cx'));
-      const pct2 = cx / W;
-      const wrapW = el.offsetWidth;
-      let left = pct2 * wrapW - 60;
-      left = Math.max(0, Math.min(left, wrapW - 130));
+      const prev2 = i > 0 ? vals[i-1] : null;
+      const d2 = vals[i] - (prev2 ?? vals[i]);
+      const sign = d2 >= 0 ? '+' : '';
+      tooltip.innerHTML = `<strong>${dates[i]}</strong><br>${fmt(vals[i])}${prev2!==null?`<br><span style="color:${d2>=0?'#5cf0b0':'#ff6b6b'}">${sign}${fmt(d2)}</span>`:''}`;
+      const ww = el.offsetWidth;
+      const cx2 = parseFloat(dot.getAttribute('cx')) / W * ww;
+      let left = cx2 - 60;
+      left = Math.max(0, Math.min(left, ww - 130));
       tooltip.style.left = left + 'px';
-      tooltip.style.top  = '-52px';
+      tooltip.style.top  = '-54px';
       tooltip.classList.add('show');
     };
-    dot.addEventListener('click', handler);
-    dot.addEventListener('mouseenter', handler);
+    dot.addEventListener('click', on);
+    dot.addEventListener('mouseenter', on);
   });
   el.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
-  el.addEventListener('click', (e) => { if (!e.target.classList.contains('trend-dot')) tooltip.classList.remove('show'); });
+  el.addEventListener('click', e => { if (!e.target.classList.contains('tdot')) tooltip.classList.remove('show'); });
 }
 
 render();
 </script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js');
-      });
-    }
-  </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+  }
+</script>
 </body>
 </html>
