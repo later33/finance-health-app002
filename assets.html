@@ -292,60 +292,26 @@ document.getElementById('save-btn').addEventListener('click', async () => {
   await render();
 });
 
-// 根据股票代码判断原始货币，换算成 CNY
-function getHoldingCNY(holdings) {
-  const RATES_FALLBACK = { CNY:1, HKD:0.92, USD:7.24 };
-  function origCur(code) {
-    if (!code) return 'CNY';
-    const c = code.trim().toUpperCase();
-    if (/\.HK$/.test(c)) return 'HKD';
-    if (/^[A-Z]{1,5}$/.test(c)) return 'USD';
-    if (/^[A-Z]{1,4}[-\.][A-Z]{1,2}$/.test(c)) return 'USD';
-    return 'CNY';
-  }
-  // 尝试从 sessionStorage 获取已缓存的汇率
-  let rates = RATES_FALLBACK;
-  try {
-    const cached = JSON.parse(sessionStorage.getItem('fx_rates') || 'null');
-    if (cached) rates = cached;
-  } catch(e) {}
-  return holdings.reduce((sum, h) => {
-    const cur = origCur(h.code);
-    return sum + Number(h.shares) * Number(h.current_price) * rates[cur];
-  }, 0);
-}
-
 async function render() {
   const user = await requireAuth();
   if (!user) return;
+
+  // 先同步持仓到资产表，再加载
+  await dbSyncHoldingsAsset();
+
   const assets = await dbLoadAssets();
-
-  // 同步加载持仓总值（CNY）
-  let holdingsTotalCNY = 0;
-  try {
-    const { data: holdings } = await sb.from('holdings').select('code,shares,current_price');
-    if (holdings && holdings.length > 0) {
-      holdingsTotalCNY = getHoldingCNY(holdings);
-    }
-  } catch(e) { console.warn('持仓数据加载失败', e); }
-
-  // 把持仓总值加入统计
-  const stats = calcStats(assets);
-  const totalNetWorth = stats.netWorth + holdingsTotalCNY;
-  document.getElementById('nw-val').textContent = fmt(totalNetWorth);
+  const stats  = calcStats(assets);
+  document.getElementById('nw-val').textContent = fmt(stats.netWorth);
 
   const listEl = document.getElementById('asset-lists');
   listEl.innerHTML = '';
 
   const groups = ['cash','investment','fixed','debt'];
   groups.forEach(type => {
-    // investment 组要加上持仓虚拟条目
     const items = assets.filter(a => a.type === type);
-    const hasHoldings = type === 'investment' && holdingsTotalCNY > 0;
-    if (items.length === 0 && !hasHoldings) return;
+    if (items.length === 0) return;
     const cfg   = TYPE_CONFIG[type];
-    const manualTotal = items.reduce((s, a) => s + Number(a.amount), 0);
-    const total = manualTotal + (type === 'investment' ? holdingsTotalCNY : 0);
+    const total = items.reduce((s, a) => s + Number(a.amount), 0);
     const group = document.createElement('div');
     group.className = 'asset-group';
     group.innerHTML = `<div class="group-label"><span>${cfg.emoji} ${cfg.label}</span><span style="font-size:13px;color:${cfg.color};font-weight:700">${fmt(total)}</span></div>`;
@@ -353,32 +319,21 @@ async function render() {
       const card = document.createElement('div');
       card.className = 'asset-card';
       card.dataset.id = a.id;
+      const isSync = a.note === '__holdings_sync__';
       card.innerHTML = `
         <div class="asset-icon" style="background:${cfg.iconBg}">${a.icon}</div>
         <div class="asset-info">
           <div class="asset-name">${a.name}</div>
-          ${a.note ? `<div class="asset-note">${a.note}</div>` : ''}
+          ${isSync
+            ? `<div class="asset-note" style="color:rgba(200,240,80,0.6)">🔗 自动同步持仓明细</div>`
+            : (a.note ? `<div class="asset-note">${a.note}</div>` : '')
+          }
         </div>
         <div class="asset-amt" style="color:${cfg.color}">${fmt(a.amount)}</div>
-        <button class="del-btn" data-id="${a.id}">✕</button>`;
+        ${isSync ? '' : `<button class="del-btn" data-id="${a.id}">✕</button>`}`;
+      if (isSync) card.addEventListener('click', () => location.href = 'investment.html');
       group.appendChild(card);
     });
-
-    // 投资组：末尾追加持仓虚拟卡片
-    if (type === 'investment' && holdingsTotalCNY > 0) {
-      const syncCard = document.createElement('div');
-      syncCard.className = 'asset-card';
-      syncCard.style.cssText = 'cursor:pointer;border-color:rgba(200,240,80,0.25)';
-      syncCard.innerHTML = `
-        <div class="asset-icon" style="background:rgba(200,240,80,0.12)">📊</div>
-        <div class="asset-info">
-          <div class="asset-name">证券持仓</div>
-          <div class="asset-note" style="color:rgba(200,240,80,0.6)">🔗 来自持仓明细 · 自动同步</div>
-        </div>
-        <div class="asset-amt" style="color:var(--accent)">${fmt(holdingsTotalCNY)}</div>`;
-      syncCard.addEventListener('click', () => location.href = 'investment.html');
-      group.appendChild(syncCard);
-    }
 
     listEl.appendChild(group);
   });
@@ -392,6 +347,7 @@ async function render() {
       await render();
     });
   });
+
 
   // 点击卡片打开编辑弹窗
   listEl.querySelectorAll('.asset-card').forEach(card => {

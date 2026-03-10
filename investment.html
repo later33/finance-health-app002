@@ -460,6 +460,16 @@ async function render() {
   allHoldings = await loadHoldings();
   renderSummary(allHoldings);
   renderList(allHoldings);
+  syncToAssets();
+}
+
+function syncToAssets() {
+  let totalCny = 0;
+  allHoldings.forEach(h => {
+    const r = rates[getOriginalCur(h.code)] || 1;
+    totalCny += Number(h.shares) * Number(h.current_price) * r;
+  });
+  if (totalCny > 0) dbSyncHoldingsAsset(totalCny);
 }
 
 // 货币切换
@@ -601,6 +611,7 @@ document.getElementById('refresh-btn').addEventListener('click', async () => {
 
   allHoldings = await loadHoldings();
   renderSummary(allHoldings);
+  syncToAssets(); // 刷新价格后同步到资产页
 
   const t = new Date();
   status.textContent = `已更新 ${ok} 条${fail?'，'+fail+' 条失败':''}（${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}）`;
