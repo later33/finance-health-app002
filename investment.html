@@ -357,6 +357,8 @@ async function fetchRates() {
     ]);
     if (hkd.rate) rates.HKD = hkd.rate;
     if (usd.rate) rates.USD = usd.rate;
+    // 缓存汇率供其他页面使用
+    try { sessionStorage.setItem('fx_rates', JSON.stringify(rates)); } catch(e) {}
   } catch(e) { console.warn('汇率获取失败，使用兜底值'); }
 }
 
