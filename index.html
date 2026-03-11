@@ -16,20 +16,6 @@
   <meta name="apple-mobile-web-app-title" content="财务健康">
   <link rel="apple-touch-icon" href="icon-192.png">
   <style>
-    :root {
-      --accent: #c8f050;
-      --accent-dim: rgba(200,240,80,0.1);
-      --ok:   #5cf0b0;
-      --warn: #ff6b6b;
-      --mid:  #f0b84a;
-      --text: #f0f0f8;
-      --text-muted: rgba(240,240,248,0.45);
-      --surface: rgba(255,255,255,0.04);
-      --surface2: #141418;
-      --border: rgba(255,255,255,0.07);
-      --bg: #0a0a0e;
-    }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -247,6 +233,61 @@
       opacity: 0.6; transition: opacity 0.15s, color 0.15s;
     }
     .logout-btn:hover { opacity: 1; color: var(--warn); }
+
+    /* ── 当月收支快照卡 ── */
+    .cf-snap-card {
+      margin: 0 20px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; padding: 16px 20px;
+    }
+    .cf-snap-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px;
+    }
+    .cf-snap-title { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .cf-snap-link  { font-size: 11px; color: var(--accent); opacity: 0.8; text-decoration: none; }
+    .cf-snap-row {
+      display: grid; grid-template-columns: 1fr 1px 1fr 1px 1fr;
+      gap: 0; align-items: center; margin-bottom: 14px;
+    }
+    .cf-snap-divider { background: var(--border); height: 30px; }
+    .cf-snap-item { text-align: center; }
+    .cf-snap-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.04em; margin-bottom: 4px; }
+    .cf-snap-val   { font-size: 15px; font-weight: 700; font-family: 'DM Mono', monospace; letter-spacing: -0.3px; }
+    .cf-snap-bar-bg   { height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+    .cf-snap-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.22,1,0.36,1) 0.5s; }
+    .cf-snap-rate { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+    .cf-snap-rate-label { font-size: 10px; color: var(--text-muted); }
+    .cf-snap-rate-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; }
+    .cf-snap-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 8px 0; line-height: 1.7; }
+
+    /* ── 新用户引导 ── */
+    .onboard-card {
+      margin: 0 20px 16px;
+      background: linear-gradient(135deg, rgba(200,240,80,0.06), rgba(96,208,240,0.04));
+      border: 1px solid rgba(200,240,80,0.2); border-radius: 24px;
+      padding: 28px 24px; text-align: center;
+    }
+    .onboard-icon { font-size: 40px; margin-bottom: 14px; }
+    .onboard-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .onboard-desc { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; }
+    .onboard-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; text-align: left; }
+    .onboard-step { display: flex; align-items: center; gap: 12px; }
+    .onboard-step-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--accent-dim); border: 1px solid var(--accent);
+      color: var(--accent); font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .onboard-step-text { font-size: 12px; color: var(--text); }
+    .onboard-cta {
+      display: block; height: 48px; border-radius: 16px; border: none;
+      background: var(--accent); color: #0f0f13; font-size: 15px; font-weight: 700;
+      font-family: inherit; cursor: pointer; text-decoration: none;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.15s;
+    }
+    .onboard-cta:active { opacity: 0.85; }
   </style>
 </head>
 <body>
@@ -348,8 +389,21 @@
       </div>
     </div>
 
+    <!-- 当月收支快照 -->
+    <div class="reveal d4" id="cf-snap-section">
+      <div class="cf-snap-card">
+        <div class="cf-snap-header">
+          <span class="cf-snap-title" id="cf-snap-month">本月收支</span>
+          <a class="cf-snap-link" href="cashflow.html">收支明细 →</a>
+        </div>
+        <div id="cf-snap-body">
+          <div class="cf-snap-empty">加载中…</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 资产分布 -->
-    <div class="reveal d4">
+    <div class="reveal d5">
       <div class="section-header">
         <span class="section-title">资产分布</span>
         <a class="section-link" href="assets.html">详情 →</a>
@@ -364,7 +418,7 @@
     </div>
 
     <!-- 净资产趋势 -->
-    <div class="reveal d5">
+    <div class="reveal d6">
       <div class="section-header">
         <span class="section-title">净资产趋势</span>
       </div>
@@ -465,13 +519,8 @@ async function render() {
     badgesEl.innerHTML += `<div class="hero-badge ${high ? 'debt-warn' : 'debt-ok'}">负债率 ${debtRatio}%</div>`;
   }
 
-  // 健康分
-  const dr = parseFloat(debtRatio);
-  const debtScore     = dr === 0 ? 100 : dr <= 30 ? 80 : dr <= 50 ? 55 : 30;
-  const typeCount     = ['cash','investment','fixed'].filter(t => byType[t] > 0).length;
-  const diversityScore = typeCount * 33;
-  const cashScore     = totalAssets > 0 ? Math.min(100, (byType.cash / totalAssets) * 300) : 0;
-  const score         = Math.round(debtScore * 0.5 + diversityScore * 0.3 + cashScore * 0.2);
+  // 健康分（统一使用 finance.js 中的 calcHealthScore，和诊断页保持一致）
+  const score = calcHealthScore(stats);
   document.getElementById('score-num').textContent = score;
   // 根据分数着色
   const scoreColor = score >= 70 ? 'var(--ok)' : score >= 45 ? 'var(--mid)' : 'var(--warn)';
@@ -492,6 +541,7 @@ async function render() {
 
   // 趋势
   renderTrend(history, netWorth);
+  await renderCfSnap();
 
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = '';
@@ -508,7 +558,32 @@ function renderDist(byType, totalAssets) {
   ].filter(t => byType[t.key] > 0);
 
   if (!types.length) {
-    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:12px;line-height:1.7;padding:8px 0">去资产页<br>添加你的资产</div>';
+    // Show onboarding card for new users
+    const onboardSection = document.createElement('div');
+    onboardSection.className = 'onboard-card';
+    onboardSection.innerHTML = `
+      <div class="onboard-icon">🌱</div>
+      <div class="onboard-title">开始你的财务健康之旅</div>
+      <div class="onboard-desc">只需 3 步，全面掌握你的财务状况</div>
+      <div class="onboard-steps">
+        <div class="onboard-step">
+          <div class="onboard-step-num">1</div>
+          <span class="onboard-step-text">在<strong style="color:var(--text)">资产页</strong>录入存款、投资、房产等资产</span>
+        </div>
+        <div class="onboard-step">
+          <div class="onboard-step-num">2</div>
+          <span class="onboard-step-text">在<strong style="color:var(--text)">收支页</strong>记录每月的收入和支出</span>
+        </div>
+        <div class="onboard-step">
+          <div class="onboard-step-num">3</div>
+          <span class="onboard-step-text">在<strong style="color:var(--text)">诊断页</strong>查看财务健康评分和建议</span>
+        </div>
+      </div>
+      <a class="onboard-cta" href="assets.html">开始添加资产 →</a>`;
+    // Insert before hero-card
+    const heroCard = document.querySelector('.hero-card');
+    if (heroCard) heroCard.insertAdjacentElement('afterend', onboardSection);
+    wrap.innerHTML = '';
     return;
   }
 
@@ -551,6 +626,52 @@ function renderDist(byType, totalAssets) {
       <text x="52" y="62" text-anchor="middle" fill="#f0f0f8" font-size="10" font-weight="600" font-family="DM Mono,monospace">${fmt(nw)}</text>
     </svg>
     <div class="pie-legend">${legend}</div>`;
+}
+
+// ── 当月收支快照 ─────────────────────────────────────
+async function renderCfSnap() {
+  const now = new Date();
+  const curMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const monthLabel = now.getFullYear() + '年' + (now.getMonth()+1) + '月';
+  document.getElementById('cf-snap-month').textContent = monthLabel + ' · 收支';
+
+  const rows = await dbLoadCashflow(curMonth);
+  const cf   = calcCashflow(rows, curMonth);
+  const el   = document.getElementById('cf-snap-body');
+
+  if (!rows.length) {
+    el.innerHTML = `<div class="cf-snap-empty">本月暂无收支记录<br><a href="cashflow.html" style="color:var(--accent);text-decoration:none">去记一笔 →</a></div>`;
+    return;
+  }
+
+  const savingsColor = cf.saving >= 0 ? 'var(--ok)' : 'var(--warn)';
+  const barW = cf.income > 0 ? Math.min(100, cf.expense / cf.income * 100) : 0;
+  const barColor = barW > 90 ? 'var(--warn)' : barW > 70 ? 'var(--mid)' : 'var(--ok)';
+
+  el.innerHTML = `
+    <div class="cf-snap-row">
+      <div class="cf-snap-item">
+        <div class="cf-snap-label">收入</div>
+        <div class="cf-snap-val" style="color:var(--ok)">${fmt(cf.income)}</div>
+      </div>
+      <div class="cf-snap-divider"></div>
+      <div class="cf-snap-item">
+        <div class="cf-snap-label">支出</div>
+        <div class="cf-snap-val" style="color:var(--warn)">${fmt(cf.expense)}</div>
+      </div>
+      <div class="cf-snap-divider"></div>
+      <div class="cf-snap-item">
+        <div class="cf-snap-label">结余</div>
+        <div class="cf-snap-val" style="color:${savingsColor}">${fmt(cf.saving)}</div>
+      </div>
+    </div>
+    <div class="cf-snap-bar-bg">
+      <div class="cf-snap-bar-fill" style="width:${barW.toFixed(1)}%;background:${barColor}"></div>
+    </div>
+    <div class="cf-snap-rate">
+      <span class="cf-snap-rate-label">支出占收入比</span>
+      <span class="cf-snap-rate-val" style="color:${barColor}">${barW.toFixed(0)}% · 储蓄率 ${cf.savRate}%</span>
+    </div>`;
 }
 
 // ── 趋势折线图 ────────────────────────────────────────

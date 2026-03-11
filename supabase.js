@@ -53,35 +53,6 @@ async function dbDeleteAsset(id) {
 }
 
 
-// ── 持仓同步到资产 ──────────────────────────────────────
-async function dbSyncHoldingsAsset(amountCNY) {
-  const user = await getUser();
-  if (!user) return;
-
-  // 查找已有的同步记录
-  const { data: existing } = await sb.from('assets')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('note', '__holdings_sync__')
-    .single();
-
-  if (existing) {
-    // 更新金额
-    await sb.from('assets').update({ amount: amountCNY }).eq('id', existing.id);
-  } else {
-    // 首次创建
-    await sb.from('assets').insert({
-      user_id: user.id,
-      type:    'investment',
-      name:    '证券持仓',
-      note:    '__holdings_sync__',
-      amount:  amountCNY,
-      icon:    '📊',
-    });
-  }
-  await dbSaveSnapshot();
-}
-
 // ── 净资产快照 ───────────────────────────────────────────
 async function dbSaveSnapshot() {
   const user   = await getUser();
@@ -127,8 +98,7 @@ async function dbDeleteCashflow(id) {
   if (error) console.error(error);
 }
 
-// ── 持仓同步到资产 ────────────────────────────────────────
-// 用 note='__holdings_sync__' 标记这条自动同步的资产
+// ── 持仓同步到资产（从 holdings 表重新计算后同步）───────────
 async function dbSyncHoldingsAsset() {
   const user = await getUser();
   if (!user) return;
