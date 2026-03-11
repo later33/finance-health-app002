@@ -234,17 +234,43 @@
     .market-pct   { font-size: 15px; font-weight: 800; font-family: var(--font-mono, monospace); }
 
     /* 压力测试 */
-    .stress-card {
-      background: rgba(255,107,107,0.06);
-      border: 1px solid rgba(255,107,107,0.15);
+    .stress-block {
+      background: rgba(255,107,107,0.05);
+      border: 1px solid rgba(255,107,107,0.13);
       border-radius: 16px; padding: 14px 16px;
     }
-    .stress-title { font-size: 11px; font-weight: 600; color: var(--warn); margin-bottom: 10px; letter-spacing: 0.03em; }
-    .stress-scenarios { display: flex; flex-direction: column; gap: 7px; }
-    .stress-row { display: flex; justify-content: space-between; align-items: center; }
-    .stress-label { font-size: 11px; color: var(--text-muted); }
-    .stress-val   { font-size: 12px; font-weight: 700; font-family: var(--font-mono, monospace); color: var(--warn); }
-    .stress-val.mild { color: var(--mid); }
+    .stress-block-title {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--warn); margin-bottom: 12px; opacity: 0.85;
+    }
+    .stress-scenario {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px; padding: 11px 13px;
+      margin-bottom: 8px; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .stress-scenario:last-child { margin-bottom: 0; }
+    .stress-scenario:hover { border-color: rgba(255,107,107,0.3); }
+    .stress-scenario-header { display: flex; justify-content: space-between; align-items: center; }
+    .stress-scenario-left {}
+    .stress-scenario-year { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; letter-spacing: 0.04em; }
+    .stress-scenario-name { font-size: 12px; font-weight: 600; color: var(--text); }
+    .stress-scenario-right { text-align: right; }
+    .stress-scenario-loss { font-size: 14px; font-weight: 800; font-family: var(--font-mono, monospace); }
+    .stress-scenario-pct  { font-size: 10px; margin-top: 1px; }
+    /* 展开详情 */
+    .stress-detail {
+      display: none; margin-top: 10px;
+      padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .stress-detail.open { display: block; }
+    .stress-detail-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .stress-detail-row:last-child { margin-bottom: 0; }
+    .stress-detail-name { font-size: 10px; color: var(--text-muted); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .stress-detail-val  { font-size: 10px; font-weight: 700; font-family: var(--font-mono, monospace); color: var(--warn); }
+    .stress-detail-val.mild { color: var(--mid); }
+    .stress-desc { font-size: 10px; color: var(--text-muted); line-height: 1.6; margin-top: 8px; opacity: 0.8; }
   </style>
 </head>
 <body>
@@ -326,9 +352,9 @@
         <div id="conc-list" style="margin-bottom:18px"></div>
         <div class="risk-section-title">市场分布</div>
         <div class="market-grid" id="market-grid" style="margin-bottom:18px"></div>
-        <div class="stress-card">
-          <div class="stress-title">⚠️ 压力测试 · 若市场整体下跌</div>
-          <div class="stress-scenarios" id="stress-scenarios"></div>
+        <div class="stress-block">
+          <div class="stress-block-title">📉 历史情景压力测试</div>
+          <div id="stress-scenarios"></div>
         </div>
       </div>
     </div>
@@ -787,19 +813,121 @@ function renderRisk(list) {
       </div>`;
   }).join('');
 
-  // ── 压力测试 ─────────────────────────────────────────
-  const totalDisp = totalMktCny / rates[displayCur];
-  const scenarios = [
-    { label: '下跌 10%（普通回调）', drop: 0.10, cls: 'mild' },
-    { label: '下跌 20%（熊市入场）', drop: 0.20, cls: ''     },
-    { label: '下跌 40%（极端风险）', drop: 0.40, cls: ''     },
+  // ── 历史情景压力测试 ─────────────────────────────────
+  //
+  // 数据来源：各主要指数历史峰值→谷底最大回撤
+  // 按「市场(CN/HK/US) × 资产类型(stock/fund/bond/crypto)」差异化跌幅
+  //
+  const SCENARIOS = [
+    {
+      id: 'gfc2008', year: '2008', name: '全球金融危机',
+      desc: '雷曼兄弟破产引发系统性危机，全球股市腰斩。A股在2007年高位已开始下跌，港股恒指跌幅超60%，S&P 500跌57%。债券因避险大幅上涨。',
+      drawdown: {
+        CN: { stock:0.62, fund:0.50, bond:-0.05, crypto:0.00, other:0.40 },
+        HK: { stock:0.65, fund:0.52, bond:-0.04, crypto:0.00, other:0.45 },
+        US: { stock:0.57, fund:0.48, bond:-0.06, crypto:0.00, other:0.38 },
+      }
+    },
+    {
+      id: 'cn2015', year: '2015', name: 'A股股灾',
+      desc: '2015年6—8月A股千股跌停，沪深300单月跌幅逾40%，去杠杆强制平仓引发连锁反应。港股受拖累约30%，美股相对稳定，BTC下跌约25%。',
+      drawdown: {
+        CN: { stock:0.45, fund:0.38, bond: 0.02, crypto:0.25, other:0.30 },
+        HK: { stock:0.30, fund:0.25, bond: 0.01, crypto:0.25, other:0.20 },
+        US: { stock:0.12, fund:0.10, bond:-0.02, crypto:0.25, other:0.08 },
+      }
+    },
+    {
+      id: 'covid2020', year: '2020', name: 'COVID 暴跌',
+      desc: '疫情恐慌引发全球流动性危机，S&P 500用33天创最快熊市纪录，跌34%。BTC单日暴跌50%，A股因较早经历疫情跌幅相对较小仅16%。',
+      drawdown: {
+        CN: { stock:0.16, fund:0.14, bond:-0.03, crypto:0.63, other:0.12 },
+        HK: { stock:0.26, fund:0.22, bond:-0.02, crypto:0.63, other:0.18 },
+        US: { stock:0.34, fund:0.28, bond: 0.01, crypto:0.63, other:0.22 },
+      }
+    },
+    {
+      id: 'tradewar2018', year: '2018', name: '中美贸易战',
+      desc: '中美贸易摩擦持续升级，A股全年跌25%，港股跌13%，美股受企业盈利支撑跌幅有限。BTC经历加密寒冬全年下跌约80%。',
+      drawdown: {
+        CN: { stock:0.25, fund:0.20, bond: 0.01, crypto:0.80, other:0.18 },
+        HK: { stock:0.13, fund:0.11, bond: 0.00, crypto:0.80, other:0.10 },
+        US: { stock:0.06, fund:0.05, bond: 0.01, crypto:0.80, other:0.04 },
+      }
+    },
+    {
+      id: 'ratehike2022', year: '2022', name: '美联储激进加息',
+      desc: '美联储全年加息425bp，纳斯达克跌33%，港股恒指跌40%触及十年低点。债券遭遇历史最差年份，10年期美债跌逾15%。BTC下跌65%，FTX暴雷加剧恐慌。',
+      drawdown: {
+        CN: { stock:0.22, fund:0.18, bond: 0.05, crypto:0.65, other:0.15 },
+        HK: { stock:0.40, fund:0.34, bond: 0.08, crypto:0.65, other:0.28 },
+        US: { stock:0.25, fund:0.20, bond: 0.15, crypto:0.65, other:0.18 },
+      }
+    },
+    {
+      id: 'eurocrisis2011', year: '2011', name: '欧债危机',
+      desc: '希腊等国债务危机蔓延，欧洲银行体系承压。港股跌28%，美股接近熊市边缘（-19%），美债等避险资产受益大涨，A股独立下跌约22%。',
+      drawdown: {
+        CN: { stock:0.22, fund:0.18, bond:-0.02, crypto:0.00, other:0.15 },
+        HK: { stock:0.28, fund:0.23, bond:-0.03, crypto:0.00, other:0.18 },
+        US: { stock:0.19, fund:0.16, bond:-0.05, crypto:0.00, other:0.12 },
+      }
+    },
   ];
-  document.getElementById('stress-scenarios').innerHTML = scenarios.map(s => {
-    const loss = totalDisp * s.drop;
+
+  // 计算每个场景下的持仓损失
+  const stressResults = SCENARIOS.map(sc => {
+    let totalLossCny = 0;
+    const itemBreakdown = [];
+    items.forEach(h => {
+      const mkt     = h.market;
+      const tp      = h.type;
+      const mktData = sc.drawdown[mkt] || sc.drawdown['US'];
+      const drop    = (mktData[tp] !== undefined) ? mktData[tp] : mktData['stock'];
+      if (drop <= 0) return;
+      const lossCny = h.mktCny * drop;
+      totalLossCny += lossCny;
+      itemBreakdown.push({ name: h.name, lossCny, drop, market: mkt, type: tp });
+    });
+    const lossDisp = totalLossCny / rates[displayCur];
+    const lossPct  = totalLossCny / totalMktCny * 100;
+    itemBreakdown.sort((a, b) => b.lossCny - a.lossCny);
+    return { ...sc, lossDisp, lossPct, itemBreakdown };
+  });
+
+  // 按损失比例从大到小排序
+  stressResults.sort((a, b) => b.lossPct - a.lossPct);
+
+  const stressEl = document.getElementById('stress-scenarios');
+  stressEl.innerHTML = stressResults.map(sc => {
+    const lossColor = sc.lossPct >= 25 ? 'var(--warn)' : sc.lossPct >= 12 ? 'var(--mid)' : 'var(--text-muted)';
+    const breakdown = sc.itemBreakdown.slice(0, 5).map(b => `
+      <div class="stress-detail-row">
+        <span class="stress-detail-name">${b.name}
+          <span style="opacity:0.5">${b.market} · -${(b.drop*100).toFixed(0)}%</span>
+        </span>
+        <span class="stress-detail-val ${b.drop < 0.12 ? 'mild' : ''}">
+          -${fmtD(b.lossCny / rates[displayCur])}
+        </span>
+      </div>`).join('');
     return `
-      <div class="stress-row">
-        <span class="stress-label">${s.label}</span>
-        <span class="stress-val ${s.cls}">-${fmtD(loss)}</span>
+      <div class="stress-scenario" onclick="this.querySelector('.stress-detail').classList.toggle('open')">
+        <div class="stress-scenario-header">
+          <div class="stress-scenario-left">
+            <div class="stress-scenario-year">${sc.year}</div>
+            <div class="stress-scenario-name">${sc.name}</div>
+          </div>
+          <div class="stress-scenario-right">
+            <div class="stress-scenario-loss" style="color:${lossColor}">-${fmtD(sc.lossDisp)}</div>
+            <div class="stress-scenario-pct"  style="color:${lossColor}">约 -${sc.lossPct.toFixed(1)}% 市值</div>
+          </div>
+        </div>
+        <div class="stress-detail">
+          <div class="stress-desc">${sc.desc}</div>
+          ${sc.itemBreakdown.length > 0 ? `
+            <div style="margin-top:10px;margin-bottom:6px;font-size:10px;color:var(--text-muted);letter-spacing:0.06em;text-transform:uppercase">主要损失来源</div>
+            ${breakdown}` : ''}
+        </div>
       </div>`;
   }).join('');
 }
