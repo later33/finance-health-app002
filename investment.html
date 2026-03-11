@@ -208,19 +208,32 @@
     }
     .risk-dim-hint { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
 
-    /* 集中度明细 */
+    /* 集中度饼图 */
     .risk-section-title {
       font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
       text-transform: uppercase; color: var(--text-muted);
       margin-bottom: 10px;
     }
-    .conc-row {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    .conc-chart-wrap {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 18px;
     }
-    .conc-name { font-size: 11px; color: var(--text); min-width: 64px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .conc-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
-    .conc-bar-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(0.22,1,0.36,1) 0.5s; }
-    .conc-pct { font-size: 11px; font-weight: 700; font-family: var(--font-mono, monospace); min-width: 34px; text-align: right; }
+    .conc-donut-wrap {
+      position: relative; flex-shrink: 0;
+      width: 120px; height: 120px;
+    }
+    .conc-donut-wrap svg { width: 100%; height: 100%; }
+    .conc-donut-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .conc-donut-top-name { font-size: 10px; color: var(--text-muted); text-align: center; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .conc-donut-top-pct  { font-size: 18px; font-weight: 800; font-family: var(--font-mono, monospace); line-height: 1.1; }
+    .conc-legend { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+    .conc-legend-row { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+    .conc-legend-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .conc-legend-name { font-size: 11px; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+    .conc-legend-pct  { font-size: 11px; font-weight: 700; font-family: var(--font-mono, monospace); }
 
     /* 市场分布 */
     .market-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 18px; }
@@ -781,20 +794,92 @@ function renderRisk(list) {
       </div>
     </div>`).join('');
 
-  // ── 集中度明细 ───────────────────────────────────────
-  const sorted = [...items].sort((a,b) => b.mktCny - a.mktCny).slice(0, 8);
-  document.getElementById('conc-list').innerHTML = sorted.map(h => {
+  // ── 集中度甜甜圈图 ───────────────────────────────────
+  const DONUT_COLORS = [
+    '#C8F050', // 主色 accent（最大仓位）
+    '#60D0F0', // 蓝
+    '#F0B84C', // 黄
+    '#FF6B6B', // 红
+    '#A78BFA', // 紫
+    '#34D399', // 绿
+    '#FB923C', // 橙
+    '#F472B6', // 粉
+  ];
+
+  const sorted = [...items].sort((a, b) => b.mktCny - a.mktCny).slice(0, 8);
+
+  // SVG 甜甜圈参数
+  const CX = 60, CY = 60, R = 46, STROKE = 14;
+  const CIRC = 2 * Math.PI * R; // 圆周长
+
+  // 构建每段弧
+  let segments = '';
+  let offset = 0; // stroke-dashoffset 起点（从顶部 -90deg → 旋转 SVG）
+  sorted.forEach((h, i) => {
+    const pct  = h.mktCny / totalMktCny;
+    const dash = pct * CIRC;
+    const gap  = CIRC - dash;
+    const color = DONUT_COLORS[i % DONUT_COLORS.length];
+    // gap 用来留 1px 间距
+    const gapPx = Math.min(2, dash * 0.05);
+    segments += `<circle
+      fill="none"
+      stroke="${color}"
+      stroke-width="${STROKE}"
+      stroke-linecap="butt"
+      cx="${CX}" cy="${CY}" r="${R}"
+      stroke-dasharray="${dash - gapPx} ${gap + gapPx}"
+      stroke-dashoffset="${CIRC * 0.25 - offset}"
+      opacity="0.9"
+      style="transition: stroke-dashoffset 0s, stroke-dasharray 0s;"
+    />`;
+    offset += dash;
+  });
+
+  // 中心显示最大持仓
+  const topItem = sorted[0];
+  const topPct  = topItem ? (topItem.mktCny / totalMktCny * 100).toFixed(1) : '0';
+  const topName = topItem ? topItem.name : '—';
+  const topColor = DONUT_COLORS[0];
+
+  // 图例 HTML（最多显示 7 条，其余合并为「其他」）
+  const legendItems = sorted.slice(0, 7);
+  const othersWeight = sorted.slice(7).reduce((s, h) => s + h.mktCny, 0);
+  let legendHTML = legendItems.map((h, i) => {
     const w = h.mktCny / totalMktCny * 100;
-    const barColor = w > 30 ? 'var(--warn)' : w > 20 ? 'var(--mid)' : 'var(--ok)';
+    const color = DONUT_COLORS[i % DONUT_COLORS.length];
+    const warnStyle = w > 30 ? 'color:var(--warn)' : w > 20 ? 'color:var(--mid)' : '';
     return `
-      <div class="conc-row">
-        <span class="conc-name">${h.name}</span>
-        <div class="conc-bar-wrap">
-          <div class="conc-bar-fill" style="width:${w}%;background:${barColor};opacity:0.75"></div>
-        </div>
-        <span class="conc-pct" style="color:${barColor}">${w.toFixed(1)}%</span>
+      <div class="conc-legend-row">
+        <span class="conc-legend-dot" style="background:${color}"></span>
+        <span class="conc-legend-name">${h.name}</span>
+        <span class="conc-legend-pct" style="${warnStyle}">${w.toFixed(1)}%</span>
       </div>`;
   }).join('');
+  if (othersWeight > 0) {
+    const w = othersWeight / totalMktCny * 100;
+    legendHTML += `
+      <div class="conc-legend-row">
+        <span class="conc-legend-dot" style="background:rgba(255,255,255,0.2)"></span>
+        <span class="conc-legend-name" style="color:var(--text-muted)">其他</span>
+        <span class="conc-legend-pct" style="color:var(--text-muted)">${w.toFixed(1)}%</span>
+      </div>`;
+  }
+
+  document.getElementById('conc-list').innerHTML = `
+    <div class="conc-chart-wrap">
+      <div class="conc-donut-wrap">
+        <svg viewBox="0 0 120 120">
+          <circle fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="${STROKE}" cx="${CX}" cy="${CY}" r="${R}"/>
+          ${segments}
+        </svg>
+        <div class="conc-donut-center">
+          <div class="conc-donut-top-name">${topName}</div>
+          <div class="conc-donut-top-pct" style="color:${topColor}">${topPct}%</div>
+        </div>
+      </div>
+      <div class="conc-legend">${legendHTML}</div>
+    </div>`;
 
   // ── 市场分布 ─────────────────────────────────────────
   const mkts = [
