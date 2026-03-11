@@ -136,6 +136,115 @@
     .spin { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .loading-screen p { font-size:13px;color:var(--text-muted); }
+
+    /* ══════════════════════════════════════
+       风险雷达模块
+    ══════════════════════════════════════ */
+
+    /* 折叠卡 */
+    .risk-card {
+      margin: 0 20px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px; overflow: hidden;
+    }
+    .risk-toggle {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 18px; cursor: pointer; user-select: none;
+    }
+    .risk-toggle-left { display: flex; align-items: center; gap: 8px; }
+    .risk-toggle-icon { font-size: 16px; }
+    .risk-toggle-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .risk-toggle-score {
+      font-size: 11px; font-weight: 700; padding: 3px 9px;
+      border-radius: 20px; font-family: var(--font-mono, monospace);
+    }
+    .risk-toggle-arrow {
+      font-size: 12px; color: var(--text-muted);
+      transition: transform 0.25s;
+    }
+    .risk-toggle-arrow.open { transform: rotate(90deg); }
+    .risk-body { padding: 0 18px 18px; }
+
+    /* 顶部一行：分数环 + 总结文字 */
+    .risk-overview {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 18px;
+    }
+    .risk-ring-wrap {
+      width: 72px; height: 72px; position: relative; flex-shrink: 0;
+    }
+    .risk-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .risk-ring-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .risk-score-num { font-size: 22px; font-weight: 800; font-family: var(--font-mono, monospace); }
+    .risk-score-sub { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+    .risk-summary {}
+    .risk-level-label {
+      font-size: 13px; font-weight: 700; margin-bottom: 4px;
+    }
+    .risk-summary-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+
+    /* 四维度条形 */
+    .risk-dims { display: flex; flex-direction: column; gap: 11px; margin-bottom: 18px; }
+    .risk-dim-row { display: flex; align-items: center; gap: 10px; }
+    .risk-dim-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .risk-dim-body { flex: 1; min-width: 0; }
+    .risk-dim-top {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 5px;
+    }
+    .risk-dim-name  { font-size: 11px; color: var(--text); font-weight: 500; }
+    .risk-dim-score { font-size: 11px; font-weight: 700; font-family: var(--font-mono, monospace); }
+    .risk-dim-bg {
+      height: 5px; background: rgba(255,255,255,0.06);
+      border-radius: 3px; overflow: hidden;
+    }
+    .risk-dim-fill {
+      height: 100%; border-radius: 3px;
+      transition: width 1s cubic-bezier(0.22,1,0.36,1) 0.3s;
+    }
+    .risk-dim-hint { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+
+    /* 集中度明细 */
+    .risk-section-title {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .conc-row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    }
+    .conc-name { font-size: 11px; color: var(--text); min-width: 64px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .conc-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+    .conc-bar-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(0.22,1,0.36,1) 0.5s; }
+    .conc-pct { font-size: 11px; font-weight: 700; font-family: var(--font-mono, monospace); min-width: 34px; text-align: right; }
+
+    /* 市场分布 */
+    .market-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 18px; }
+    .market-tile {
+      background: var(--surface2, #131318); border-radius: 14px;
+      padding: 10px 12px; text-align: center;
+      border: 1px solid var(--border);
+    }
+    .market-flag  { font-size: 18px; margin-bottom: 4px; }
+    .market-name  { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
+    .market-pct   { font-size: 15px; font-weight: 800; font-family: var(--font-mono, monospace); }
+
+    /* 压力测试 */
+    .stress-card {
+      background: rgba(255,107,107,0.06);
+      border: 1px solid rgba(255,107,107,0.15);
+      border-radius: 16px; padding: 14px 16px;
+    }
+    .stress-title { font-size: 11px; font-weight: 600; color: var(--warn); margin-bottom: 10px; letter-spacing: 0.03em; }
+    .stress-scenarios { display: flex; flex-direction: column; gap: 7px; }
+    .stress-row { display: flex; justify-content: space-between; align-items: center; }
+    .stress-label { font-size: 11px; color: var(--text-muted); }
+    .stress-val   { font-size: 12px; font-weight: 700; font-family: var(--font-mono, monospace); color: var(--warn); }
+    .stress-val.mild { color: var(--mid); }
   </style>
 </head>
 <body>
@@ -180,6 +289,48 @@
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0 24px 12px;">
       <div id="refresh-status" style="font-size:11px;color:var(--text-muted)">点击右侧按钮更新最新价格</div>
       <button id="refresh-btn" style="height:32px;padding:0 14px;border-radius:10px;border:1px solid rgba(200,240,80,0.3);background:rgba(200,240,80,0.1);color:var(--accent);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">🔄 刷新价格</button>
+    </div>
+
+    <!-- ══ 风险雷达 ══ -->
+    <div class="risk-card" id="risk-card">
+      <div class="risk-toggle" id="risk-toggle">
+        <div class="risk-toggle-left">
+          <span class="risk-toggle-icon">🛡️</span>
+          <span class="risk-toggle-title">持仓风险雷达</span>
+          <span class="risk-toggle-score" id="risk-badge">—</span>
+        </div>
+        <span class="risk-toggle-arrow open" id="risk-arrow">›</span>
+      </div>
+      <div class="risk-body" id="risk-body">
+        <div class="risk-overview">
+          <div class="risk-ring-wrap">
+            <svg viewBox="0 0 72 72">
+              <circle fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6" cx="36" cy="36" r="28"/>
+              <circle fill="none" stroke-width="6" stroke-linecap="round"
+                cx="36" cy="36" r="28" id="risk-ring-circle"
+                stroke-dasharray="175.9" stroke-dashoffset="175.9"
+                style="transition:stroke-dashoffset 1.2s cubic-bezier(0.22,1,0.36,1) 0.2s;stroke:var(--ok)"/>
+            </svg>
+            <div class="risk-ring-center">
+              <span class="risk-score-num" id="risk-score-num">—</span>
+              <span class="risk-score-sub">/100</span>
+            </div>
+          </div>
+          <div class="risk-summary">
+            <div class="risk-level-label" id="risk-level-label">—</div>
+            <div class="risk-summary-text" id="risk-summary-text">—</div>
+          </div>
+        </div>
+        <div class="risk-dims" id="risk-dims"></div>
+        <div class="risk-section-title">持仓集中度</div>
+        <div id="conc-list" style="margin-bottom:18px"></div>
+        <div class="risk-section-title">市场分布</div>
+        <div class="market-grid" id="market-grid" style="margin-bottom:18px"></div>
+        <div class="stress-card">
+          <div class="stress-title">⚠️ 压力测试 · 若市场整体下跌</div>
+          <div class="stress-scenarios" id="stress-scenarios"></div>
+        </div>
+      </div>
     </div>
 
     <div class="type-tabs">
@@ -460,7 +611,197 @@ async function render() {
   allHoldings = await loadHoldings();
   renderSummary(allHoldings);
   renderList(allHoldings);
+  renderRisk(allHoldings);
   syncToAssets();
+}
+
+// ══════════════════════════════════════════════════════
+// 风险雷达引擎
+// ══════════════════════════════════════════════════════
+function renderRisk(list) {
+  if (!list.length) {
+    document.getElementById('risk-badge').textContent = '无数据';
+    document.getElementById('risk-badge').style.cssText = 'background:rgba(255,255,255,0.06);color:var(--text-muted)';
+    document.getElementById('risk-score-num').textContent = '—';
+    document.getElementById('risk-level-label').textContent = '暂无数据';
+    document.getElementById('risk-summary-text').textContent = '添加持仓后自动生成风险分析';
+    document.getElementById('risk-dims').innerHTML = '';
+    document.getElementById('conc-list').innerHTML = '';
+    document.getElementById('market-grid').innerHTML = '';
+    document.getElementById('stress-scenarios').innerHTML = '';
+    return;
+  }
+
+  // ── 计算每只持仓的市值（CNY）──────────────────────────
+  const items = list.map(h => {
+    const origCur = getOriginalCur(h.code);
+    const mktCny  = Number(h.shares) * Number(h.current_price) * rates[origCur];
+    const costCny = Number(h.shares) * Number(h.cost_price)    * rates[origCur];
+    const market  = origCur === 'HKD' ? 'HK' : origCur === 'USD' ? 'US' : 'CN';
+    return { ...h, mktCny, costCny, market, origCur };
+  });
+  const totalMktCny = items.reduce((s, h) => s + h.mktCny, 0) || 1;
+
+  // ── 1. 集中度分 ─────────────────────────────────────
+  const weights = items.map(h => h.mktCny / totalMktCny * 100);
+  const maxWeight = Math.max(...weights);
+  const concScore =
+    maxWeight < 15 ? 100 :
+    maxWeight < 20 ? 85  :
+    maxWeight < 30 ? 65  :
+    maxWeight < 50 ? 40  : 15;
+  const concHint =
+    maxWeight < 20 ? '单只持仓集中度良好' :
+    maxWeight < 30 ? `最大持仓 ${maxWeight.toFixed(0)}%，略偏集中` :
+    maxWeight < 50 ? `最大持仓 ${maxWeight.toFixed(0)}%，集中度偏高` :
+                     `最大持仓 ${maxWeight.toFixed(0)}%，高度集中，风险较大`;
+
+  // ── 2. 分散化分 ─────────────────────────────────────
+  const typeSet   = new Set(items.map(h => h.type));
+  const marketSet = new Set(items.map(h => h.market));
+  const typeCount = typeSet.size;
+  const mktCount  = marketSet.size;
+  const divScore  = Math.min(100,
+    typeCount  * 20 +   // 每种类型 +20
+    mktCount   * 25 +   // 每个市场 +25
+    (items.length >= 5 ? 15 : items.length * 3) // 持仓数量加成
+  );
+  const divHint =
+    divScore >= 75 ? `${typeCount} 类资产 · ${mktCount} 个市场，分散充分` :
+    divScore >= 50 ? `可适当增加资产类型或跨市场配置` :
+                     `持仓较单一，建议分散到不同类型/市场`;
+
+  // ── 3. 市场暴露分 ────────────────────────────────────
+  const mktPct = { CN:0, HK:0, US:0 };
+  items.forEach(h => { mktPct[h.market] = (mktPct[h.market]||0) + h.mktCny/totalMktCny*100; });
+  const maxMktPct = Math.max(...Object.values(mktPct));
+  const mktScore =
+    maxMktPct < 50 ? 100 :
+    maxMktPct < 70 ? 80  :
+    maxMktPct < 85 ? 55  : 30;
+  const mktHint =
+    maxMktPct < 60 ? '市场分布较均衡' :
+    maxMktPct < 80 ? `单一市场占比 ${maxMktPct.toFixed(0)}%，可适当分散` :
+                     `单一市场占比 ${maxMktPct.toFixed(0)}%，地区风险集中`;
+
+  // ── 4. 盈亏健康分 ────────────────────────────────────
+  const profitItems = items.filter(h => h.mktCny >= h.costCny);
+  const profitMktVal = profitItems.reduce((s, h) => s + h.mktCny, 0);
+  const profitPct    = profitMktVal / totalMktCny * 100;
+  const totalPnlPct  = (totalMktCny - items.reduce((s,h)=>s+h.costCny,0))
+                        / (items.reduce((s,h)=>s+h.costCny,0)||1) * 100;
+  const pnlScore =
+    totalPnlPct > 15  ? 100 :
+    totalPnlPct > 5   ? 85  :
+    totalPnlPct > 0   ? 65  :
+    totalPnlPct > -10 ? 45  :
+    totalPnlPct > -20 ? 25  : 10;
+  const pnlHint =
+    totalPnlPct > 10  ? `整体盈利 ${totalPnlPct.toFixed(1)}%，持仓健康` :
+    totalPnlPct > 0   ? `整体小幅盈利 ${totalPnlPct.toFixed(1)}%` :
+    totalPnlPct > -15 ? `整体浮亏 ${Math.abs(totalPnlPct).toFixed(1)}%，留意风险` :
+                        `整体浮亏 ${Math.abs(totalPnlPct).toFixed(1)}%，建议检视持仓`;
+
+  // ── 综合风险分（越高越健康）──────────────────────────
+  const overall = Math.round(
+    concScore * 0.30 +
+    divScore  * 0.25 +
+    mktScore  * 0.20 +
+    pnlScore  * 0.25
+  );
+
+  // ── 风险等级 ────────────────────────────────────────
+  const levelInfo =
+    overall >= 80 ? { label:'风险较低 🟢', color:'var(--ok)',  summary:'持仓结构健康，各维度表现良好。' } :
+    overall >= 60 ? { label:'风险适中 🟡', color:'var(--mid)', summary:'整体风险可控，部分维度有优化空间。' } :
+    overall >= 40 ? { label:'风险偏高 🟠', color:'var(--mid)', summary:'存在一定集中或暴露风险，建议优化配置。' } :
+                    { label:'风险较高 🔴', color:'var(--warn)', summary:'持仓风险集中，建议尽快检视并分散风险。' };
+
+  // ── 渲染综合分 ───────────────────────────────────────
+  document.getElementById('risk-score-num').textContent = overall;
+  document.getElementById('risk-score-num').style.color = levelInfo.color;
+  document.getElementById('risk-ring-circle').style.stroke = levelInfo.color;
+  document.getElementById('risk-ring-circle').style.strokeDashoffset =
+    (175.9 * (1 - overall/100)).toFixed(1);
+  document.getElementById('risk-level-label').textContent  = levelInfo.label;
+  document.getElementById('risk-level-label').style.color  = levelInfo.color;
+  document.getElementById('risk-summary-text').textContent = levelInfo.summary;
+  document.getElementById('risk-badge').textContent = overall + ' 分';
+  document.getElementById('risk-badge').style.cssText =
+    `background:${levelInfo.color.replace('var(','').replace(')','').trim()};` +
+    (overall >= 60
+      ? `background:${levelInfo.color === 'var(--ok)' ? 'rgba(92,240,176,0.12)' : 'rgba(240,184,76,0.12)'};color:${levelInfo.color}`
+      : `background:rgba(255,107,107,0.12);color:var(--warn)`);
+
+  // ── 渲染四维度 ───────────────────────────────────────
+  const dims = [
+    { icon:'🎯', name:'集中度控制', score:concScore, hint:concHint, color: concScore>=80?'var(--ok)':concScore>=50?'var(--mid)':'var(--warn)' },
+    { icon:'🌐', name:'分散化程度', score:divScore,  hint:divHint,  color: divScore>=75?'var(--ok)':divScore>=50?'var(--mid)':'var(--warn)' },
+    { icon:'🗺️', name:'市场暴露',   score:mktScore,  hint:mktHint,  color: mktScore>=80?'var(--ok)':mktScore>=55?'var(--mid)':'var(--warn)' },
+    { icon:'📈', name:'盈亏健康',   score:pnlScore,  hint:pnlHint,  color: pnlScore>=80?'var(--ok)':pnlScore>=50?'var(--mid)':'var(--warn)' },
+  ];
+  document.getElementById('risk-dims').innerHTML = dims.map(d => `
+    <div class="risk-dim-row">
+      <span class="risk-dim-icon">${d.icon}</span>
+      <div class="risk-dim-body">
+        <div class="risk-dim-top">
+          <span class="risk-dim-name">${d.name}</span>
+          <span class="risk-dim-score" style="color:${d.color}">${d.score}</span>
+        </div>
+        <div class="risk-dim-bg">
+          <div class="risk-dim-fill" style="width:${d.score}%;background:${d.color};opacity:0.8"></div>
+        </div>
+        <div class="risk-dim-hint">${d.hint}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 集中度明细 ───────────────────────────────────────
+  const sorted = [...items].sort((a,b) => b.mktCny - a.mktCny).slice(0, 8);
+  document.getElementById('conc-list').innerHTML = sorted.map(h => {
+    const w = h.mktCny / totalMktCny * 100;
+    const barColor = w > 30 ? 'var(--warn)' : w > 20 ? 'var(--mid)' : 'var(--ok)';
+    return `
+      <div class="conc-row">
+        <span class="conc-name">${h.name}</span>
+        <div class="conc-bar-wrap">
+          <div class="conc-bar-fill" style="width:${w}%;background:${barColor};opacity:0.75"></div>
+        </div>
+        <span class="conc-pct" style="color:${barColor}">${w.toFixed(1)}%</span>
+      </div>`;
+  }).join('');
+
+  // ── 市场分布 ─────────────────────────────────────────
+  const mkts = [
+    { key:'CN', flag:'🇨🇳', name:'A 股' },
+    { key:'HK', flag:'🇭🇰', name:'港股' },
+    { key:'US', flag:'🇺🇸', name:'美股' },
+  ];
+  document.getElementById('market-grid').innerHTML = mkts.map(m => {
+    const pct = mktPct[m.key] || 0;
+    const color = pct > 80 ? 'var(--warn)' : pct > 60 ? 'var(--mid)' : pct > 0 ? 'var(--text)' : 'var(--text-muted)';
+    return `
+      <div class="market-tile">
+        <div class="market-flag">${m.flag}</div>
+        <div class="market-name">${m.name}</div>
+        <div class="market-pct" style="color:${color}">${pct.toFixed(0)}%</div>
+      </div>`;
+  }).join('');
+
+  // ── 压力测试 ─────────────────────────────────────────
+  const totalDisp = totalMktCny / rates[displayCur];
+  const scenarios = [
+    { label: '下跌 10%（普通回调）', drop: 0.10, cls: 'mild' },
+    { label: '下跌 20%（熊市入场）', drop: 0.20, cls: ''     },
+    { label: '下跌 40%（极端风险）', drop: 0.40, cls: ''     },
+  ];
+  document.getElementById('stress-scenarios').innerHTML = scenarios.map(s => {
+    const loss = totalDisp * s.drop;
+    return `
+      <div class="stress-row">
+        <span class="stress-label">${s.label}</span>
+        <span class="stress-val ${s.cls}">-${fmtD(loss)}</span>
+      </div>`;
+  }).join('');
 }
 
 function syncToAssets() {
@@ -471,6 +812,15 @@ function syncToAssets() {
   });
   if (totalCny > 0) dbSyncHoldingsAsset(totalCny);
 }
+
+// 风险雷达折叠
+document.getElementById('risk-toggle').addEventListener('click', () => {
+  const body  = document.getElementById('risk-body');
+  const arrow = document.getElementById('risk-arrow');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  arrow.classList.toggle('open', !isOpen);
+});
 
 // 货币切换
 document.querySelectorAll('.cur-sw-btn').forEach(btn => {
@@ -611,6 +961,7 @@ document.getElementById('refresh-btn').addEventListener('click', async () => {
 
   allHoldings = await loadHoldings();
   renderSummary(allHoldings);
+  renderRisk(allHoldings);
   syncToAssets(); // 刷新价格后同步到资产页
 
   const t = new Date();
