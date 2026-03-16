@@ -85,6 +85,71 @@
       transition: transform 0.12s, opacity 0.12s;
     }
     .cta-btn:active { transform: scale(0.98); opacity: 0.9; }
+    /* ── AI 月报模块 ── */
+    .ai-report-wrap { padding: 14px 24px 0; }
+    .ai-report-btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; width: 100%; height: 52px; border-radius: 16px;
+      border: 1.5px solid rgba(200,240,80,0.25);
+      background: rgba(200,240,80,0.06); color: var(--accent);
+      font-size: 14px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden;
+    }
+    .ai-report-btn:hover  { background: rgba(200,240,80,0.1); border-color: rgba(200,240,80,0.4); }
+    .ai-report-btn:active { transform: scale(0.97); }
+    .ai-report-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .ai-report-btn.loading { color: var(--text-muted); border-color: var(--border); background: var(--surface); }
+    .ai-prog-bar {
+      position: absolute; bottom: 0; left: 0; height: 3px;
+      background: var(--accent); border-radius: 0 0 16px 16px;
+      width: 0%; transition: width 0.4s ease;
+    }
+    /* 报告卡 */
+    .ai-result-card {
+      margin: 12px 24px 0;
+      background: var(--surface); border: 1px solid rgba(200,240,80,0.2);
+      border-radius: 20px; overflow: hidden; display: none;
+    }
+    .ai-result-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(200,240,80,0.04);
+    }
+    .ai-result-title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+    .ai-result-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px; background: var(--accent-dim); color: var(--accent);
+    }
+    .ai-result-body { padding: 16px 18px; }
+    .ai-sec { margin-bottom: 16px; }
+    .ai-sec:last-child { margin-bottom: 0; }
+    .ai-sec-title {
+      font-size: 10px; font-weight: 600; color: var(--accent);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 6px; display: flex; align-items: center; gap: 5px;
+    }
+    .ai-sec-title::before {
+      content:''; width:3px; height:10px; border-radius:2px;
+      background:var(--accent); display:block;
+    }
+    .ai-sec-text { font-size: 12px; line-height: 1.8; color: var(--text); }
+    .ai-sec-text strong { color: var(--accent); }
+    .ai-sec-text .c-ok   { color: var(--ok); font-weight: 600; }
+    .ai-sec-text .c-warn { color: var(--warn); font-weight: 600; }
+    .ai-advice-list { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+    .ai-advice-item {
+      display: flex; gap: 9px; align-items: flex-start;
+      background: rgba(255,255,255,0.03); border-radius: 10px;
+      padding: 9px 11px; border: 1px solid var(--border);
+    }
+    .ai-advice-num {
+      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+      background: var(--accent-dim); color: var(--accent);
+      font-size: 9px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    }
+    .ai-advice-text { font-size: 11px; line-height: 1.7; color: var(--text); }
+
 
     .empty-diag { margin: 48px 24px; text-align: center; color: var(--text-muted); }
     .empty-diag .ei { font-size: 48px; margin-bottom: 16px; }
@@ -143,7 +208,104 @@
     .tag-urgent { background:var(--warn-dim);color:var(--warn); }
     .tag-good   { background:var(--ok-dim);  color:var(--ok);   }
     .tag-tip    { background:var(--mid-dim); color:var(--mid);  }
-  </style>
+  
+    /* ── AI 月报模块 ── */
+    .ai-report-wrap { padding: 16px 24px 0; }
+    .ai-report-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .ai-report-card.active { border-color: rgba(200,240,80,0.3); }
+    .ai-report-toggle {
+      display: flex; align-items: center; gap: 12px;
+      padding: 15px 18px; cursor: pointer; user-select: none;
+    }
+    .ai-report-toggle-icon { font-size: 18px; }
+    .ai-report-toggle-label { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
+    .ai-report-toggle-badge {
+      font-size: 10px; font-weight: 600; padding: 3px 8px;
+      border-radius: 20px; background: var(--accent-dim); color: var(--accent);
+    }
+    .ai-report-toggle-arrow {
+      font-size: 12px; color: var(--text-muted);
+      transition: transform 0.25s;
+    }
+    .ai-report-toggle-arrow.open { transform: rotate(90deg); }
+
+    .ai-report-inner { display: none; border-top: 1px solid var(--border); }
+    .ai-report-inner.open { display: block; }
+
+    /* 月份选择 */
+    .ai-month-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.01);
+    }
+    .ai-month-arrow {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .ai-month-arrow:hover { border-color: var(--accent); color: var(--accent); }
+    .ai-month-label { font-size: 14px; font-weight: 600; color: var(--text); }
+
+    /* 生成按钮 */
+    .ai-gen-btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; margin: 14px 18px;
+      height: 48px; border-radius: 14px; border: none;
+      background: var(--accent); color: #0a0a0e;
+      font-size: 14px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: transform 0.12s, opacity 0.12s;
+      position: relative; overflow: hidden; width: calc(100% - 36px);
+    }
+    .ai-gen-btn:active { transform: scale(0.97); }
+    .ai-gen-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .ai-gen-btn.loading { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+    .ai-gen-btn .ai-prog {
+      position: absolute; bottom: 0; left: 0; height: 3px;
+      background: var(--accent); width: 0%; transition: width 0.4s ease;
+    }
+
+    /* 报告内容 */
+    .ai-report-body {
+      padding: 16px 18px 18px;
+      font-size: 13px; color: var(--text); line-height: 1.8;
+    }
+    .ai-section { margin-bottom: 16px; }
+    .ai-section:last-child { margin-bottom: 0; }
+    .ai-section-title {
+      font-size: 10px; font-weight: 600; color: var(--accent);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 6px; display: flex; align-items: center; gap: 5px;
+    }
+    .ai-section-title::before {
+      content: ''; width: 3px; height: 10px; border-radius: 2px;
+      background: var(--accent); display: block;
+    }
+    .ai-text { font-size: 12px; line-height: 1.8; color: var(--text); }
+    .ai-text strong { color: var(--accent); font-weight: 600; }
+    .ai-text .ok   { color: var(--ok); font-weight: 600; }
+    .ai-text .warn { color: var(--warn); font-weight: 600; }
+
+    /* 建议列表 */
+    .ai-advice-list { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+    .ai-advice-item {
+      display: flex; gap: 9px; align-items: flex-start;
+      background: rgba(255,255,255,0.03); border-radius: 10px;
+      padding: 9px 11px; border: 1px solid var(--border);
+    }
+    .ai-advice-num {
+      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+      background: var(--accent-dim); border: 1px solid rgba(200,240,80,0.3);
+      color: var(--accent); font-size: 9px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    }
+    .ai-advice-text { font-size: 11px; line-height: 1.7; color: var(--text); }
+</style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f0f13">
@@ -168,6 +330,31 @@
       <div class="page-sub" id="diag-sub">基于你的真实数据生成</div>
     </div>
     <div id="diag-body"></div>
+
+    <!-- AI 月报模块 -->
+    <div class="ai-report-wrap" id="ai-report-wrap" style="display:none">
+      <div class="ai-report-card" id="ai-report-card">
+        <div class="ai-report-toggle" id="ai-toggle">
+          <span class="ai-report-toggle-icon">🤖</span>
+          <span class="ai-report-toggle-label">AI 月度财务报告</span>
+          <span class="ai-report-toggle-badge">NEW</span>
+          <span class="ai-report-toggle-arrow" id="ai-arrow">›</span>
+        </div>
+        <div class="ai-report-inner" id="ai-inner">
+          <div class="ai-month-row">
+            <div class="ai-month-arrow" id="ai-prev">‹</div>
+            <div class="ai-month-label" id="ai-month-label">—</div>
+            <div class="ai-month-arrow" id="ai-next">›</div>
+          </div>
+          <button class="ai-gen-btn" id="ai-gen-btn">
+            <span>✨</span>
+            <span id="ai-btn-text">生成本月 AI 报告</span>
+            <div class="ai-prog" id="ai-prog"></div>
+          </button>
+          <div class="ai-report-body" id="ai-report-body" style="display:none"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <nav class="nav-bar">
@@ -414,8 +601,20 @@ async function render(){
     return;
   }
 
+  // 初始化 AI 月报模块
   const {total, dims} = runDiagnosis(data);
   const ss = scoreStyle(total);
+  // 暴露数据给 AI 月报模块
+  const _now = new Date();
+  const _curM = _now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0');
+  if (typeof window._setDiagData === 'function') {
+    window._setDiagData({
+      stats:   calcStats(assets),
+      cfData:  calcCashflow(cfRows, _curM),
+      score:   total,
+      history: history,
+    });
+  }
 
   // 问题列表
   const problems = dims.filter(d=>d.score<50).map(d=>d.name);
@@ -510,8 +709,12 @@ async function render(){
     <div class="cta-wrap">
       <button class="cta-btn" id="advice-btn">查看行动建议 →</button>
     </div>
-    <div style="padding:12px 24px 0">
-      <a href="ai-report.html" style="display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:16px;text-decoration:none;background:rgba(200,240,80,0.08);border:1px solid rgba(200,240,80,0.25);color:var(--accent);font-size:14px;font-weight:600;font-family:inherit;">🤖 生成 AI 月度财务报告</a>
+    <div class="ai-report-wrap">
+      <button class="ai-report-btn" id="ai-report-btn"><span>🤖</span><span id="ai-btn-text">生成 AI 财务报告</span><div class="ai-prog-bar" id="ai-prog-bar"></div></button>
+    </div>
+    <div class="ai-result-card" id="ai-result-card">
+      <div class="ai-result-header"><span>📊</span><span class="ai-result-title" id="ai-result-title">AI 财务报告</span><span class="ai-result-badge">AI 生成</span></div>
+      <div class="ai-result-body" id="ai-result-body"></div>
     </div>`;
 
   document.getElementById('diag-body').innerHTML = html;
@@ -605,7 +808,187 @@ render().then(() => {
         navigator.serviceWorker.register('/sw.js');
       });
     }
-  </script>
+  
+// ── AI 月报逻辑 ──────────────────────────────────────────
+(function() {
+  let _diagData = null; // 存储诊断数据供 AI 使用
+
+  // 在 render 完成后，暴露数据给 AI 模块
+  const _origRender = window._diagDataReady;
+  window._setDiagData = function(data) { _diagData = data; };
+
+  function buildAIPrompt(data) {
+    if (!data) return null;
+    const { stats, cfData, score, history } = data;
+    const now = new Date();
+    const curMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    const mLabel = now.getFullYear() + '年' + (now.getMonth()+1) + '月';
+
+    const income  = cfData?.income  || 0;
+    const expense = cfData?.expense || 0;
+    const savRate = cfData?.savRate || 0;
+
+    // 支出分类明细
+    const expDetail = (cfData?.rows || [])
+      .filter(r => r.type === 'expense')
+      .reduce((acc, r) => { acc[r.category] = (acc[r.category]||0)+Number(r.amount); return acc; }, {});
+    const expStr = Object.entries(expDetail)
+      .map(([k,v]) => getCfCat('expense',k).label + '：¥' + v.toFixed(0))
+      .join('、') || '暂无明细';
+
+    const trendDesc = (history||[]).slice(-3).length >= 2
+      ? '近期净资产：' + (history||[]).slice(-3).map(h=>`${h.date} ¥${h.netWorth}`).join(' → ')
+      : '净资产历史数据不足';
+
+    return `你是专业财务顾问，请根据以下用户${mLabel}的真实财务数据，生成简洁的月度财务分析报告。
+
+【本月收支】
+收入：¥${income.toFixed(0)}，支出：¥${expense.toFixed(0)}（${expStr}），储蓄率：${savRate}%
+
+【资产状况】
+净资产：¥${stats.netWorth.toFixed(0)}，现金：¥${stats.byType.cash.toFixed(0)}，投资：¥${stats.byType.investment.toFixed(0)}，负债率：${stats.debtRatio}%
+${trendDesc}
+
+【综合健康评分】${score}/100
+
+请按格式输出（针对具体数字，不说废话）：
+
+[总体评价]
+2句话点评本月财务亮点和主要问题，必须引用具体数字。
+
+[收支分析]
+储蓄率是否健康，支出结构分析，1-2句。
+
+[资产健康]
+资产结构合理性，负债情况，1-2句。
+
+[三条建议]
+1. （第一条，30字以内，具体可执行）
+2. （第二条，30字以内，具体可执行）
+3. （第三条，30字以内，具体可执行）
+
+控制在200字以内，语气专业亲切。`;
+  }
+
+  function parseAndRender(text) {
+    function extract(t, key) {
+      const m = t.match(new RegExp('\\[' + key + '\\]([\\s\\S]*?)(?=\\[|$)'));
+      return m ? m[1].trim() : '';
+    }
+    function hl(t) {
+      return t
+        .replace(/(\d+\.?\d*%)/g, '<span class="c-ok">$1</span>')
+        .replace(/(¥[\d,\.万]+)/g, '<strong>$1</strong>')
+        .replace(/(不足|偏低|超支|风险|过高|亏损)/g, '<span class="c-warn">$1</span>')
+        .replace(/(良好|健康|达标|优秀|稳健)/g, '<span class="c-ok">$1</span>');
+    }
+
+    const overview = extract(text, '总体评价');
+    const cf       = extract(text, '收支分析');
+    const asset    = extract(text, '资产健康');
+    const advRaw   = extract(text, '三条建议');
+
+    const advLines = advRaw.split('\n')
+      .map(l => l.replace(/^[\d\.\.\-\、\*]+\s*/, '').trim())
+      .filter(l => l.length > 4)
+      .slice(0, 3);
+
+    const advHTML = advLines.map((l, i) =>
+      `<div class="ai-advice-item"><div class="ai-advice-num">${i+1}</div><div class="ai-advice-text">${l}</div></div>`
+    ).join('');
+
+    return `
+      <div class="ai-sec">
+        <div class="ai-sec-title">总体评价</div>
+        <div class="ai-sec-text">${hl(overview || '数据不足，请先录入本月收支')}</div>
+      </div>
+      <div class="ai-sec">
+        <div class="ai-sec-title">收支分析</div>
+        <div class="ai-sec-text">${hl(cf || '本月暂无收支记录')}</div>
+      </div>
+      <div class="ai-sec">
+        <div class="ai-sec-title">资产健康</div>
+        <div class="ai-sec-text">${hl(asset || '请先录入资产数据')}</div>
+      </div>
+      <div class="ai-sec">
+        <div class="ai-sec-title">三条建议</div>
+        <div class="ai-advice-list">${advHTML || '<div class="ai-sec-text">暂无建议</div>'}</div>
+      </div>`;
+  }
+
+  // 绑定按钮事件（等 DOM 准备好）
+  document.addEventListener('DOMContentLoaded', () => {
+    // ai-report-btn 在 render() 动态注入，需要用事件委托
+    document.getElementById('diag-body').addEventListener('click', async (e) => {
+      const btn = e.target.closest('#ai-report-btn');
+      if (!btn) return;
+
+      const btnText  = document.getElementById('ai-btn-text');
+      const progBar  = document.getElementById('ai-prog-bar');
+      const card     = document.getElementById('ai-result-card');
+      const body     = document.getElementById('ai-result-body');
+      const title    = document.getElementById('ai-result-title');
+
+      if (!_diagData) { alert('请等待数据加载完成'); return; }
+
+      const prompt = buildAIPrompt(_diagData);
+      if (!prompt) { alert('数据不足，请先录入资产和收支'); return; }
+
+      // 开始加载
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btnText.textContent = 'AI 分析中…';
+      card.style.display = '';
+      body.innerHTML = '<div style="text-align:center;padding:28px 0;color:var(--text-muted);font-size:13px"><div style="font-size:24px;margin-bottom:8px">🤖</div>正在分析你的财务数据…</div>';
+
+      const now = new Date();
+      title.textContent = now.getFullYear() + '年' + (now.getMonth()+1) + '月 · AI 财务报告';
+
+      let prog = 0;
+      const timer = setInterval(() => {
+        prog = Math.min(prog + Math.random() * 10, 88);
+        progBar.style.width = prog + '%';
+      }, 250);
+
+      try {
+        const resp = await fetch('/api/ai-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await resp.json();
+
+        clearInterval(timer);
+        progBar.style.width = '100%';
+        setTimeout(() => { progBar.style.opacity='0'; }, 600);
+
+        if (data.text) {
+          body.innerHTML = parseAndRender(data.text);
+          // 缓存结果
+          const key = 'ai_report_' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+          try { localStorage.setItem(key, JSON.stringify({ text: data.text, ts: Date.now() })); } catch(e){}
+          btnText.textContent = '重新生成';
+        } else {
+          body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--warn);font-size:13px">❌ ' + (data.error || '生成失败，请重试') + '</div>';
+          btnText.textContent = '重试';
+        }
+      } catch(err) {
+        clearInterval(timer);
+        body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--warn);font-size:13px">❌ 网络错误，请检查连接</div>';
+        btnText.textContent = '重试';
+      }
+
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      progBar.style.width = '0%';
+      progBar.style.opacity = '1';
+
+      // 平滑滚动到报告
+      setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    });
+  });
+})();
+</script>
 
 <!-- 行动建议弹窗 -->
 <div class="advice-overlay" id="advice-overlay">
