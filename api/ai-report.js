@@ -1,5 +1,5 @@
 // api/ai-report.js - Vercel Serverless Function
-// 代理 Claude API，解决浏览器跨域问题
+// 代理 DeepSeek API，API Key 只存在服务器端，不暴露给浏览器
 // 用法: POST /api/ai-report  body: { prompt: "..." }
 
 export default async function handler(req, res) {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // 处理 preflight
+  // 处理预检请求
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -21,21 +21,26 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '缺少 prompt 参数' });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // 限制长度，防止滥用
+  if (prompt.length > 4000) {
+    return res.status(400).json({ error: 'prompt 过长' });
+  }
+
+  // 从 Vercel 环境变量读取 DeepSeek API Key
+  const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'API Key 未配置，请在 Vercel 环境变量中添加 ANTHROPIC_API_KEY' });
+    return res.status(500).json({ error: 'API Key 未配置，请在 Vercel 环境变量中添加 DEEPSEEK_API_KEY' });
   }
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', // 用 Haiku，速度快成本低
+        model: 'deepseek-chat',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -43,11 +48,12 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const err = await response.text();
-      return res.status(response.status).json({ error: 'Claude API 错误: ' + err });
+      return res.status(response.status).json({ error: 'DeepSeek API 错误: ' + err });
     }
 
     const data = await response.json();
-    const text = data.content?.map(c => c.text || '').join('') || '';
+    // DeepSeek 用 OpenAI 格式返回
+    const text = data.choices?.[0]?.message?.content || '';
 
     return res.status(200).json({ text });
 
