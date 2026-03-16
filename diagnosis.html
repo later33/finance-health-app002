@@ -196,6 +196,7 @@
 
 <script src="js/finance.js"></script>
 <script src="supabase.js"></script>
+<script src="js/quick-entry.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────
 //  诊断引擎
@@ -508,6 +509,9 @@ async function render(){
     <!-- CTA -->
     <div class="cta-wrap">
       <button class="cta-btn" id="advice-btn">查看行动建议 →</button>
+    </div>
+    <div style="padding:12px 24px 0">
+      <a href="ai-report.html" style="display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:16px;text-decoration:none;background:rgba(200,240,80,0.08);border:1px solid rgba(200,240,80,0.25);color:var(--accent);font-size:14px;font-weight:600;font-family:inherit;">🤖 生成 AI 月度财务报告</a>
     </div>`;
 
   document.getElementById('diag-body').innerHTML = html;

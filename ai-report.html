@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>财务健康 · AI 月报</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="base.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── 月份选择栏 ── */
+    .month-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px 18px;
+    }
+    .month-arrow {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .month-arrow:hover { border-color: var(--accent); color: var(--accent); }
+    .month-arrow:active { transform: scale(0.9); }
+    .month-label { font-size: 17px; font-weight: 700; color: var(--text); }
+
+    /* ── 数据快照卡 ── */
+    .snapshot-card {
+      margin: 0 20px 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; padding: 18px 20px;
+    }
+    .snapshot-title {
+      font-size: 10px; font-weight: 600; color: var(--text-muted);
+      letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px;
+    }
+    .snapshot-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .snap-item { text-align: center; }
+    .snap-label { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+    .snap-val   { font-size: 15px; font-weight: 700; font-family: 'DM Mono', monospace; }
+    .snap-divider { width: 1px; background: var(--border); }
+    .snapshot-row2 {
+      display: grid; grid-template-columns: 1fr 1px 1fr;
+      gap: 0; margin-top: 14px; padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── 生成按钮 ── */
+    .generate-btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; margin: 0 20px 20px;
+      height: 54px; border-radius: 18px; border: none;
+      background: var(--accent); color: #0a0a0e;
+      font-size: 16px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: transform 0.12s, opacity 0.12s;
+      position: relative; overflow: hidden;
+    }
+    .generate-btn:active { transform: scale(0.97); }
+    .generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .generate-btn .btn-icon { font-size: 20px; }
+    .generate-btn.loading { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* 进度动画 */
+    .progress-bar {
+      position: absolute; bottom: 0; left: 0; height: 3px;
+      background: var(--accent); border-radius: 0 0 18px 18px;
+      width: 0%; transition: width 0.4s ease;
+    }
+
+    /* ── AI 报告区域 ── */
+    .report-section {
+      margin: 0 20px 16px;
+    }
+    .report-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .report-card.active { border-color: rgba(200,240,80,0.3); }
+
+    .report-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      background: rgba(200,240,80,0.03);
+    }
+    .report-header-icon { font-size: 20px; }
+    .report-header-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .report-header-badge {
+      margin-left: auto; font-size: 10px; font-weight: 600;
+      padding: 3px 10px; border-radius: 20px;
+      background: var(--accent-dim); color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+
+    .report-body {
+      padding: 20px;
+      font-size: 14px; color: var(--text); line-height: 1.8;
+    }
+
+    /* AI 内容样式 */
+    .report-body .ai-section { margin-bottom: 20px; }
+    .report-body .ai-section:last-child { margin-bottom: 0; }
+    .report-body .ai-section-title {
+      font-size: 12px; font-weight: 600; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+    }
+    .report-body .ai-section-title::before {
+      content: ''; width: 3px; height: 12px; border-radius: 2px;
+      background: var(--accent); display: block;
+    }
+    .report-body .ai-text {
+      font-size: 13px; line-height: 1.8; color: var(--text);
+    }
+    .report-body .ai-text strong { color: var(--accent); font-weight: 600; }
+    .report-body .ai-text .ok   { color: var(--ok); font-weight: 600; }
+    .report-body .ai-text .warn { color: var(--warn); font-weight: 600; }
+    .report-body .ai-text .mid  { color: var(--mid); font-weight: 600; }
+
+    /* 建议列表 */
+    .advice-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .advice-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: rgba(255,255,255,0.03); border-radius: 12px;
+      padding: 10px 12px; border: 1px solid var(--border);
+    }
+    .advice-num {
+      width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+      background: var(--accent-dim); border: 1px solid rgba(200,240,80,0.3);
+      color: var(--accent); font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+    .advice-text { font-size: 12px; line-height: 1.7; color: var(--text); }
+
+    /* 打字机效果 */
+    .typing-cursor::after {
+      content: '▋';
+      animation: blink 0.8s step-end infinite;
+      color: var(--accent);
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* 空状态 */
+    .empty-report {
+      padding: 40px 20px; text-align: center;
+      color: var(--text-muted); font-size: 13px; line-height: 1.8;
+    }
+    .empty-report .ei { font-size: 40px; margin-bottom: 12px; }
+
+    /* 历史报告 */
+    .history-section { margin: 0 20px 80px; }
+    .history-title {
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .history-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 12px 16px; margin-bottom: 8px;
+      cursor: pointer; transition: border-color 0.15s;
+      text-decoration: none;
+    }
+    .history-item:hover { border-color: rgba(200,240,80,0.3); }
+    .history-item-left { display: flex; align-items: center; gap: 10px; }
+    .history-item-icon { font-size: 16px; }
+    .history-item-month { font-size: 13px; font-weight: 600; color: var(--text); }
+    .history-item-score { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .history-item-arrow { font-size: 16px; color: var(--text-muted); }
+
+    /* loading */
+    .loading-screen { position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200; }
+    .spin { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .loading-screen p { font-size:13px;color:var(--text-muted); }
+  </style>
+</head>
+<body>
+<div class="loading-screen" id="loading"><div class="spin"></div><p>加载中…</p></div>
+
+<div class="phone" id="app" style="display:none">
+  <div class="status-bar">
+    <span class="status-time" id="clock">9:41</span>
+    <div class="status-icons">
+      <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="white" stroke-width="1.2" fill="none" opacity="0.8"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/></svg>
+    </div>
+  </div>
+
+  <div class="screen-content">
+    <!-- 标题 -->
+    <div class="page-header reveal d1" style="display:flex;justify-content:space-between;align-items:flex-end">
+      <div>
+        <div class="page-title">AI 月度报告</div>
+        <div class="page-sub">基于你的真实数据生成财务分析</div>
+      </div>
+      <span style="font-size:22px">🤖</span>
+    </div>
+
+    <!-- 月份切换 -->
+    <div class="month-nav reveal d2">
+      <div class="month-arrow" id="prev-month">‹</div>
+      <div class="month-label" id="month-display">—</div>
+      <div class="month-arrow" id="next-month">›</div>
+    </div>
+
+    <!-- 数据快照 -->
+    <div class="snapshot-card reveal d2" id="snapshot-card">
+      <div class="snapshot-title">本月数据快照</div>
+      <div class="snapshot-grid">
+        <div class="snap-item">
+          <div class="snap-label">收入</div>
+          <div class="snap-val" id="snap-income" style="color:var(--ok)">—</div>
+        </div>
+        <div class="snap-item">
+          <div class="snap-label">支出</div>
+          <div class="snap-val" id="snap-expense" style="color:var(--warn)">—</div>
+        </div>
+        <div class="snap-item">
+          <div class="snap-label">储蓄率</div>
+          <div class="snap-val" id="snap-savrate" style="color:var(--accent)">—</div>
+        </div>
+      </div>
+      <div class="snapshot-row2">
+        <div class="snap-item">
+          <div class="snap-label">净资产</div>
+          <div class="snap-val" id="snap-nw" style="color:var(--text)">—</div>
+        </div>
+        <div class="snap-divider"></div>
+        <div class="snap-item">
+          <div class="snap-label">健康评分</div>
+          <div class="snap-val" id="snap-score" style="color:var(--accent)">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 生成按钮 -->
+    <button class="generate-btn reveal d3" id="generate-btn">
+      <span class="btn-icon">✨</span>
+      <span id="btn-text">生成本月 AI 报告</span>
+      <div class="progress-bar" id="progress-bar"></div>
+    </button>
+
+    <!-- 报告区域 -->
+    <div class="report-section reveal d4" id="report-section" style="display:none">
+      <div class="report-card" id="report-card">
+        <div class="report-header">
+          <span class="report-header-icon">📊</span>
+          <span class="report-header-title" id="report-month-label">2025年1月 财务报告</span>
+          <span class="report-header-badge">AI 生成</span>
+        </div>
+        <div class="report-body" id="report-body">
+          <div class="empty-report">
+            <div class="ei">✨</div>
+            点击上方按钮生成本月报告
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史报告 -->
+    <div class="history-section" id="history-section" style="display:none">
+      <div class="history-title">历史报告</div>
+      <div id="history-list"></div>
+    </div>
+
+  </div>
+
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="10" width="8" height="10" rx="2" fill="currentColor"/><rect x="12" y="2" width="8" height="18" rx="2" fill="currentColor" opacity="0.6"/></svg>
+      <span>总览</span>
+    </a>
+    <a href="assets.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="9" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="7" height="9" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>资产</span>
+    </a>
+    <a href="cashflow.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M4 7l4-4 4 4M18 15l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>收支</span>
+    </a>
+    <a href="diagnosis.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 17 L7 11 L11 14 L15 7 L19 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>诊断</span>
+    </a>
+    <a href="goals.html" class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="4" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="1.5" fill="currentColor"/></svg>
+      <span>目标</span>
+    </a>
+  </nav>
+</div>
+
+<script src="js/finance.js"></script>
+<script src="supabase.js"></script>
+<script src="js/quick-entry.js"></script>
+<script>
+// ── 时钟 ──────────────────────────────────────────────────
+function updateClock() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    n.getHours() + ':' + String(n.getMinutes()).padStart(2, '0');
+}
+updateClock(); setInterval(updateClock, 10000);
+
+// ── 状态 ─────────────────────────────────────────────────
+let currentMonth = '';
+let allAssets    = [];
+let allCfRows    = [];
+let allHistory   = [];
+
+// ── 工具函数 ──────────────────────────────────────────────
+function monthList() {
+  const months = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  return months;
+}
+function fmtMonth(ym) {
+  if (!ym) return '—';
+  const [y, m] = ym.split('-');
+  return `${y}年${parseInt(m)}月`;
+}
+
+// ── 更新快照 ──────────────────────────────────────────────
+function updateSnapshot() {
+  const cf    = calcCashflow(allCfRows, currentMonth);
+  const stats = calcStats(allAssets);
+  const score = calcHealthScore(stats);
+
+  document.getElementById('snap-income').textContent  = fmt(cf.income);
+  document.getElementById('snap-expense').textContent = fmt(cf.expense);
+
+  const srEl = document.getElementById('snap-savrate');
+  srEl.textContent = cf.income > 0 ? cf.savRate + '%' : '—';
+  srEl.style.color = parseInt(cf.savRate) >= 20 ? 'var(--ok)' : parseInt(cf.savRate) >= 10 ? 'var(--mid)' : 'var(--warn)';
+
+  document.getElementById('snap-nw').textContent    = fmt(stats.netWorth);
+  document.getElementById('snap-score').textContent = score + ' 分';
+  const scoreColor = score >= 70 ? 'var(--ok)' : score >= 45 ? 'var(--mid)' : 'var(--warn)';
+  document.getElementById('snap-score').style.color = scoreColor;
+}
+
+// ── 构造发给 AI 的 prompt ─────────────────────────────────
+function buildPrompt() {
+  const cf    = calcCashflow(allCfRows, currentMonth);
+  const stats = calcStats(allAssets);
+  const score = calcHealthScore(stats);
+  const [y, m] = currentMonth.split('-');
+
+  // 支出分类明细
+  const expBycat = {};
+  allCfRows.filter(r => r.type === 'expense' && r.date_month === currentMonth)
+    .forEach(r => { expBycat[r.category] = (expBycat[r.category] || 0) + Number(r.amount); });
+  const expDetail = Object.entries(expBycat)
+    .map(([k, v]) => `${getCfCat('expense', k).label}：¥${v.toFixed(0)}`)
+    .join('、') || '暂无明细';
+
+  // 收入来源
+  const incBycat = {};
+  allCfRows.filter(r => r.type === 'income' && r.date_month === currentMonth)
+    .forEach(r => { incBycat[r.category] = (incBycat[r.category] || 0) + Number(r.amount); });
+  const incDetail = Object.entries(incBycat)
+    .map(([k, v]) => `${getCfCat('income', k).label}：¥${v.toFixed(0)}`)
+    .join('、') || '暂无明细';
+
+  // 净资产趋势
+  const recentHistory = allHistory.slice(-3);
+  const trendDesc = recentHistory.length >= 2
+    ? `近期净资产：${recentHistory.map(h => `${h.date} ¥${h.netWorth}`).join(' → ')}`
+    : '净资产历史数据不足';
+
+  return `你是一个专业的个人财务顾问，请根据以下用户的真实财务数据，生成一份${y}年${parseInt(m)}月的财务分析报告。
+
+【本月数据】
+- 收入：¥${cf.income.toFixed(0)}（来源：${incDetail}）
+- 支出：¥${cf.expense.toFixed(0)}（明细：${expDetail}）
+- 结余：¥${cf.saving.toFixed(0)}
+- 储蓄率：${cf.savRate}%
+
+【资产状况】
+- 净资产：¥${stats.netWorth.toFixed(0)}
+- 现金存款：¥${stats.byType.cash.toFixed(0)}
+- 投资资产：¥${stats.byType.investment.toFixed(0)}
+- 固定资产：¥${stats.byType.fixed.toFixed(0)}
+- 负债：¥${stats.totalDebt.toFixed(0)}
+- 负债率：${stats.debtRatio}%
+- ${trendDesc}
+
+【综合健康评分】${score}/100
+
+请按照以下格式输出，每个部分都要针对用户的具体数据，不要说废话和套话：
+
+[总体评价]
+用2-3句话对本月财务状况做整体评价，要指出具体的数字和亮点/问题。
+
+[收支分析]
+分析本月收支结构，储蓄率是否健康（目标≥20%），支出哪个分类占比最高。
+
+[资产健康]
+分析资产结构是否合理，现金比例、投资比例、负债情况的具体评价。
+
+[三条建议]
+给出3条针对该用户数据的具体可执行建议，每条不超过40字，要直接说做什么。
+
+要求：语气专业但亲切，数字要准确引用，建议要具体可执行，整体控制在250字以内。`;
+}
+
+// ── 解析 AI 输出并渲染 ───────────────────────────────────
+function renderReport(text) {
+  const body = document.getElementById('report-body');
+
+  // 解析各部分
+  const sections = {
+    overview:  extractSection(text, '总体评价'),
+    cashflow:  extractSection(text, '收支分析'),
+    asset:     extractSection(text, '资产健康'),
+    advice:    extractSection(text, '三条建议'),
+  };
+
+  // 渲染建议列表
+  let adviceHTML = '';
+  if (sections.advice) {
+    const lines = sections.advice.split('\n')
+      .map(l => l.replace(/^[\d\.\-\、\*]+\s*/, '').trim())
+      .filter(l => l.length > 5);
+    adviceHTML = `<div class="advice-list">` +
+      lines.slice(0, 3).map((l, i) =>
+        `<div class="advice-item">
+          <div class="advice-num">${i+1}</div>
+          <div class="advice-text">${l}</div>
+        </div>`
+      ).join('') + `</div>`;
+  }
+
+  body.innerHTML = `
+    <div class="ai-section">
+      <div class="ai-section-title">总体评价</div>
+      <div class="ai-text">${highlightNumbers(sections.overview || '数据不足，请先录入本月收支')}</div>
+    </div>
+    <div class="ai-section">
+      <div class="ai-section-title">收支分析</div>
+      <div class="ai-text">${highlightNumbers(sections.cashflow || '本月暂无收支记录')}</div>
+    </div>
+    <div class="ai-section">
+      <div class="ai-section-title">资产健康</div>
+      <div class="ai-text">${highlightNumbers(sections.asset || '请先录入资产数据')}</div>
+    </div>
+    <div class="ai-section">
+      <div class="ai-section-title">三条建议</div>
+      ${adviceHTML || '<div class="ai-text">暂无建议</div>'}
+    </div>`;
+}
+
+function extractSection(text, key) {
+  const regex = new RegExp(`\\[${key}\\]([\\s\\S]*?)(?=\\[|$)`);
+  const match = text.match(regex);
+  return match ? match[1].trim() : '';
+}
+
+function highlightNumbers(text) {
+  // 高亮百分比、金额、数字
+  return text
+    .replace(/(\d+\.?\d*%)/g, '<span class="ok">$1</span>')
+    .replace(/(¥[\d,\.万]+)/g, '<strong>$1</strong>')
+    .replace(/(不足|偏低|超支|风险|过高)/g, '<span class="warn">$1</span>')
+    .replace(/(良好|健康|达标|优秀)/g, '<span class="ok">$1</span>');
+}
+
+// ── 调用 Claude API ───────────────────────────────────────
+async function generateReport() {
+  const btn      = document.getElementById('generate-btn');
+  const btnText  = document.getElementById('btn-text');
+  const progress = document.getElementById('progress-bar');
+  const section  = document.getElementById('report-section');
+  const card     = document.getElementById('report-card');
+  const body     = document.getElementById('report-body');
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btnText.textContent = 'AI 分析中…';
+  section.style.display = '';
+  card.classList.add('active');
+  body.innerHTML = `<div style="text-align:center;padding:32px 0;color:var(--text-muted)">
+    <div style="font-size:28px;margin-bottom:12px;animation:pulse 1.4s ease-in-out infinite">🤖</div>
+    <div style="font-size:13px">正在分析你的财务数据…</div>
+  </div>`;
+
+  document.getElementById('report-month-label').textContent = fmtMonth(currentMonth) + ' 财务报告';
+
+  // 进度条动画
+  let prog = 0;
+  const progTimer = setInterval(() => {
+    prog = Math.min(prog + Math.random() * 8, 85);
+    progress.style.width = prog + '%';
+  }, 300);
+
+  try {
+    const prompt = buildPrompt();
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.map(c => c.text || '').join('') || '';
+
+    clearInterval(progTimer);
+    progress.style.width = '100%';
+
+    setTimeout(() => {
+      progress.style.transition = 'opacity 0.3s';
+      progress.style.opacity = '0';
+    }, 500);
+
+    if (text) {
+      renderReport(text);
+      // 保存到 localStorage
+      const key = `ai_report_${currentMonth}`;
+      localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }));
+      loadHistory();
+    } else {
+      body.innerHTML = `<div class="empty-report"><div class="ei">❌</div>生成失败，请稍后重试</div>`;
+    }
+
+  } catch (err) {
+    clearInterval(progTimer);
+    console.error(err);
+    body.innerHTML = `<div class="empty-report"><div class="ei">❌</div>网络错误，请检查连接后重试</div>`;
+  }
+
+  btn.disabled = false;
+  btn.classList.remove('loading');
+  btnText.textContent = '重新生成';
+  progress.style.width = '0%';
+  progress.style.opacity = '1';
+  progress.style.transition = 'width 0.4s ease';
+}
+
+// ── 加载历史报告 ──────────────────────────────────────────
+function loadHistory() {
+  const list = document.getElementById('history-list');
+  const section = document.getElementById('history-section');
+  const months = monthList();
+  const items = [];
+
+  months.forEach(m => {
+    const saved = localStorage.getItem(`ai_report_${m}`);
+    if (saved && m !== currentMonth) {
+      try {
+        const { ts } = JSON.parse(saved);
+        items.push({ month: m, ts });
+      } catch(e) {}
+    }
+  });
+
+  if (!items.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  list.innerHTML = items.reverse().map(item => `
+    <div class="history-item" onclick="loadHistoryReport('${item.month}')">
+      <div class="history-item-left">
+        <span class="history-item-icon">📄</span>
+        <div>
+          <div class="history-item-month">${fmtMonth(item.month)}</div>
+          <div class="history-item-score">已生成报告</div>
+        </div>
+      </div>
+      <span class="history-item-arrow">›</span>
+    </div>`).join('');
+}
+
+function loadHistoryReport(month) {
+  const saved = localStorage.getItem(`ai_report_${month}`);
+  if (!saved) return;
+  try {
+    const { text } = JSON.parse(saved);
+    currentMonth = month;
+    updateMonthDisplay();
+    updateSnapshot();
+    const section = document.getElementById('report-section');
+    const card    = document.getElementById('report-card');
+    section.style.display = '';
+    card.classList.add('active');
+    document.getElementById('report-month-label').textContent = fmtMonth(month) + ' 财务报告';
+    renderReport(text);
+    document.getElementById('btn-text').textContent = '重新生成';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch(e) {}
+}
+
+// ── 月份导航 ──────────────────────────────────────────────
+function updateMonthDisplay() {
+  const months = monthList();
+  document.getElementById('month-display').textContent = fmtMonth(currentMonth);
+  document.getElementById('prev-month').style.opacity = months.indexOf(currentMonth) > 0 ? '1' : '0.3';
+  document.getElementById('next-month').style.opacity = months.indexOf(currentMonth) < months.length - 1 ? '1' : '0.3';
+}
+
+document.getElementById('prev-month').addEventListener('click', () => {
+  const months = monthList();
+  const idx = months.indexOf(currentMonth);
+  if (idx > 0) {
+    currentMonth = months[idx - 1];
+    updateMonthDisplay();
+    updateSnapshot();
+    resetReport();
+  }
+});
+document.getElementById('next-month').addEventListener('click', () => {
+  const months = monthList();
+  const idx = months.indexOf(currentMonth);
+  if (idx < months.length - 1) {
+    currentMonth = months[idx + 1];
+    updateMonthDisplay();
+    updateSnapshot();
+    resetReport();
+  }
+});
+
+function resetReport() {
+  const section = document.getElementById('report-section');
+  const card    = document.getElementById('report-card');
+  document.getElementById('btn-text').textContent = '生成本月 AI 报告';
+  card.classList.remove('active');
+
+  // 检查有没有缓存的报告
+  const saved = localStorage.getItem(`ai_report_${currentMonth}`);
+  if (saved) {
+    try {
+      const { text } = JSON.parse(saved);
+      section.style.display = '';
+      card.classList.add('active');
+      document.getElementById('report-month-label').textContent = fmtMonth(currentMonth) + ' 财务报告';
+      renderReport(text);
+      document.getElementById('btn-text').textContent = '重新生成';
+      return;
+    } catch(e) {}
+  }
+  section.style.display = 'none';
+}
+
+// ── 主入口 ───────────────────────────────────────────────
+async function render() {
+  const user = await requireAuth();
+  if (!user) return;
+
+  const now = new Date();
+  currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  [allAssets, allCfRows, allHistory] = await Promise.all([
+    dbLoadAssets(),
+    dbLoadCashflow(),
+    dbLoadHistory(),
+  ]);
+
+  updateMonthDisplay();
+  updateSnapshot();
+  loadHistory();
+
+  // 检查当前月是否有缓存
+  const saved = localStorage.getItem(`ai_report_${currentMonth}`);
+  if (saved) {
+    try {
+      const { text } = JSON.parse(saved);
+      document.getElementById('report-section').style.display = '';
+      document.getElementById('report-card').classList.add('active');
+      document.getElementById('report-month-label').textContent = fmtMonth(currentMonth) + ' 财务报告';
+      renderReport(text);
+      document.getElementById('btn-text').textContent = '重新生成';
+    } catch(e) {}
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+
+document.getElementById('generate-btn').addEventListener('click', generateReport);
+
+render();
+</script>
+</body>
+</html>
