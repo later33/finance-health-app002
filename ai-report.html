@@ -504,18 +504,21 @@ async function generateReport() {
   try {
     const prompt = buildPrompt();
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/api/ai-report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify({ prompt })
     });
 
-    const data = await response.json();
-    const text = data.content?.map(c => c.text || '').join('') || '';
+    let text = '';
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      text = '';
+      body.innerHTML = `<div class="empty-report"><div class="ei">❌</div>${errData.error || '服务器错误，请稍后重试'}</div>`;
+    } else {
+      const data = await response.json();
+      text = data.text || '';
+    }
 
     clearInterval(progTimer);
     progress.style.width = '100%';
@@ -531,8 +534,6 @@ async function generateReport() {
       const key = `ai_report_${currentMonth}`;
       localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }));
       loadHistory();
-    } else {
-      body.innerHTML = `<div class="empty-report"><div class="ei">❌</div>生成失败，请稍后重试</div>`;
     }
 
   } catch (err) {
